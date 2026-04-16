@@ -1,4 +1,4 @@
-# Owl Memory Architecture
+# Owl Memory Architecture(记忆模块介绍:))
 
 > Updated: 2026-04-16  
 > Scope: current repository implementation in `owl/`  
@@ -8,7 +8,7 @@
 
 ## 1. 文档目的
 
-这份文档描述 Owl 当前的记忆系统真实实现，而不是仅描述目标设计。
+这份文档描述 Owl 当前的记忆系统真实实现
 
 重点说明四件事：
 
