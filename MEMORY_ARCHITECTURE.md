@@ -1,219 +1,98 @@
-# Owl Memory Architecture(记忆模块介绍:))
+# Owl Memory Architecture
 
 > Updated: 2026-04-16  
 > Scope: current repository implementation in `owl/`  
-> Status: aligned with the refactor work that has been implemented and verified by test
+> Status: architecture document aligned with the current codebase
 
 ---
 
-## 1. 文档目的
+## 1. 文档说明
 
-这份文档描述 Owl 当前的记忆系统真实实现
+这份文档从五个维度介绍 Owl 当前的记忆系统实现：
 
-重点说明四件事：
+1. 记忆模块的结构
+2. 记忆模块的作用
+3. 记忆系统的工作原理
+4. 记忆系统的评价标准
+5. 记忆系统当前的表现
 
-1. 这次 memory 重构前，架构上存在哪些问题。
-2. 这次修改后，核心链路变成了什么样。
-3. 当前各模块分别负责什么。
-4. 仍然保留了哪些兼容层，后续还能往哪里继续收敛。
+这份文档描述的是当前仓库里已经落地的实现，而不是抽象目标设计。
 
 ---
 
-## 2. 改造前的问题
+## 2. 设计目标
 
-在这轮重构前，memory 相关实现有几个典型问题：
+Owl 的记忆系统服务于一个非常具体的问题：让本地 coding agent 在真实代码仓库里连续工作时，不因为上下文窗口限制、任务跨度变长或文件状态变化而快速“失忆”。
 
-### 2.1 长短期记忆链路不够单一
+因此这套设计主要解决五类问题：
 
-理论目标应该是：
+1. 当前任务中的观察和推理过程如何在多步工具调用之间保留下来。
+2. 一次运行中得到的有效信息，如何被压缩成后续可复用的长期知识。
+3. 历史知识如何在新任务里被准确召回，而不是把无关旧信息一并带进 prompt。
+4. 当文件已经变化时，旧记忆如何被识别为过期，避免污染当前推理。
+5. 记忆效果如何被持续评估，而不是只靠主观感觉判断“似乎更聪明了”。
+
+围绕这些目标，当前系统采用了分层记忆架构：
 
 `Tool Result -> WorkingMemory -> MemoryCompactor -> SemanticMemory`
 
-但旧实现里同时存在：
-
-- runtime 直接写 legacy `LayeredMemory`
-- `MemoryWriter` 既参与 working memory，又可能直接写 semantic memory
-- prompt 组装时混用 legacy memory 和新 memory
-
-结果是：
-
-- 单一事实来源不清晰
-- 很难判断一条记忆到底来自哪里
-- 测试经常被“同一信息被多路写入”干扰
-
-### 2.2 SemanticMemory 跨运行持久化不稳定
-
-旧设计里 long-term memory 的目标是跨 run 复用，但运行时并没有稳定地把语义记忆绑定到 repo 级数据库。
-
-典型后果：
-
-- 新开进程后长期记忆不一定还在
-- 不同测试之间容易共用同一个 repo-root semantic DB
-- 测试和真实运行行为不一致
-
-### 2.3 文件有效性和陈旧检测链路不完整
-
-虽然已经有：
-
-- `FileFingerprintTracker`
-- `SemanticRecordValidityChecker`
-- `StaleObservationGuard`
-
-但旧链路里这些组件没有完全嵌入真实工具执行流：
-
-- `read_file` 后不一定记录指纹
-- `write_file` / `patch_file` 后不一定马上触发失效
-- recall 时不能稳定过滤 stale semantic record
-
-### 2.4 Prompt 组装混合新旧 recall
-
-`ContextManager` 旧实现会同时依赖：
-
-- legacy `LayeredMemory.retrieval_candidates()`
-- 新的 `MemoryRetriever.recall_for_task()`
-
-后果：
-
-- prompt 中 relevant memory 来源不透明
-- 很难解释为什么当前这条记忆会出现在 prompt
-- 历史压缩和 memory metadata 也不够稳定
-
-### 2.5 参数和规则分散
-
-旧实现里很多 memory 相关阈值直接散落在不同文件中，比如：
-
-- relevant memory 条数
-- observation 上限
-- recall rank 权重
-- similarity threshold
-
-后续调参成本高，也不利于维护。
-
 ---
 
-## 3. 改造后的总体架构
+## 3. 记忆模块的结构
 
-当前记忆架构可以概括为：
+## 3.1 总体结构
 
-### 3.1 主链路
-
-```text
-用户请求
-  -> Owl.ask()
-  -> 模型/工具循环
-  -> MemoryWriter 只写 WorkingMemory
-  -> 运行结束时由 MemoryCompactor 统一压缩和提升
-  -> SemanticMemory 持久化到 .owl/memory/semantic-memory.db
-  -> 后续 run 通过 MemoryRetriever 召回
-  -> ContextManager 组装到 prompt
-```
-
-### 3.2 当前分层
+当前记忆系统可以分成五层：
 
 ```text
 Layer 0: Legacy Compatibility
   - owl/memory.py
-  - 继续保留 session["memory"] / files / notes 等旧结构
-  - 主要用于兼容旧测试、旧会话、旧接口
+  - 保留旧的 session["memory"]、notes、files 等结构
+  - 主要用于兼容旧测试、旧会话、旧调用路径
 
 Layer 1: Working Memory
   - owl/working_memory.py
-  - 存本轮运行内的短期状态
-  - 包括 observations / hypotheses / candidate targets / pending verifications
+  - 保存当前 run 内的短期状态
 
 Layer 2: Compaction / Promotion
   - owl/memory_compactor.py
-  - 负责 working -> semantic 的唯一正式桥梁
-  - 同时做去重、总结、structured compaction、procedure candidate detection
+  - 负责 working memory 到 semantic memory 的正式提升
 
 Layer 3: Semantic Memory
   - owl/semantic_memory.py
-  - repo 级 SQLite 持久化
-  - 支持 file_path / file_version / freshness_hash / invalidation / supersede
+  - 负责跨 run 的长期持久化存储
 
 Layer 4: Recall / Context
   - owl/memory_retriever.py
   - owl/recall_ranker.py
   - owl/context_manager.py
-  - 负责召回、排序、过滤、压缩后进入 prompt
+  - 负责召回、排序、过滤和 prompt 组装
 ```
 
----
+## 3.2 主执行链路
 
-## 4. 改造前后对比
-
-| 维度 | 改造前 | 改造后 |
-|---|---|---|
-| 长期记忆写入 | 可能被多条路径直接写入 | 以 `MemoryCompactor` 为正式提升通道 |
-| 短期记忆 | legacy state 与新结构并存，但职责混杂 | `WorkingMemory` 作为本轮短期状态主载体 |
-| 长期存储 | 不够稳定，跨运行行为不统一 | repo 级 SQLite：`.owl/memory/semantic-memory.db` |
-| Recall 来源 | legacy recall 与新 recall 混用 | 新 recall 为主，legacy 作为兼容回退 |
-| 文件失效检测 | 有组件但接入不完整 | 指纹、失效、stale 清理、validity checker 已接入主流程 |
-| Prompt metadata | 对 recall 来源解释不够充分 | relevant/history metadata 明确记录 recall item 和压缩行为 |
-| 参数管理 | 多处散落 | 收敛到 `owl/memory_config.py` |
-
----
-
-## 5. 当前真实执行流
-
-## 5.1 Runtime 初始化
-
-核心位置：`owl/runtime.py`
-
-当前 `Owl.__init__()` 会初始化：
-
-- `self.memory`: legacy `LayeredMemory`
-- `self.working_memory`: 新 WorkingMemory
-- `self.semantic_memory`: 新 SemanticMemory
-- `self._memory_writer`
-- `self._memory_retriever`
-- `self._memory_compactor`
-- `self.context_manager`
-
-其中 `SemanticMemory` 当前绑定：
+在运行时，记忆主链路如下：
 
 ```text
-.owl/memory/semantic-memory.db
+用户请求
+  -> Owl.ask()
+  -> 模型/工具循环
+  -> Tool Result
+  -> MemoryWriter.write_working()
+  -> WorkingMemory
+  -> MemoryCompactor.compact_and_promote_v2()
+  -> SemanticMemory (.owl/memory/semantic-memory.db)
+  -> MemoryRetriever.recall_for_task()
+  -> RecallRanker.rank()
+  -> ContextManager.build()
+  -> prompt
 ```
 
-这意味着同一 repo 下的不同 run 可以共享长期记忆。
+## 3.3 当前核心对象结构
 
-## 5.2 ask() 主流程
+### WorkingMemory
 
-`Owl.ask()` 当前关键步骤如下：
-
-1. 更新任务摘要到 memory。
-2. 初始化 `TaskState` 和 `ExecutionState`。
-3. 重建本轮 `WorkingMemory`。
-4. 按 feature flag 初始化：
-   - context discovery
-   - fingerprint tracker
-   - stale guard
-   - semantic validity checker
-5. 每轮循环中：
-   - `ContextManager.build()` 组装 prompt
-   - 模型返回 tool 或 final
-   - tool 执行后：
-     - `update_memory_after_tool()` 维护 legacy 兼容 memory
-     - `MemoryWriter.should_write()`
-     - `MemoryWriter.write_working()`
-     - 文件修改时 semantic invalidation
-     - stale observation cleanup
-6. 成功或停止时：
-   - `MemoryCompactor.compact_and_promote_v2()`
-   - structured compaction
-   - procedure candidate detection
-   - 写 trace / report / metrics
-
----
-
-## 6. 关键模块职责
-
-## 6.1 `owl/working_memory.py`
-
-职责：本轮运行内短期记忆。
-
-当前结构包括：
+`WorkingMemory` 当前主要保存：
 
 - `task_summary`
 - `plan`
@@ -222,31 +101,17 @@ Layer 4: Recall / Context
 - `candidate_targets`
 - `pending_verifications`
 
-这次重构后的重要变化：
+其中 observation 已经引入 `observation_id`，用于稳定删除与 stale 清理。
 
-- observation 增加 `observation_id`
-- stale removal 不再依赖列表索引，而是依赖稳定 ID
-- `render_text()` 输出统一为 `Memory:` 开头，方便 prompt 组装
-- observation / hypothesis / candidate / pending 上限改由 `memory_config.py` 管理
+### SemanticMemory
 
-这解决了两个问题：
+`SemanticMemory` 当前使用 repo 级 SQLite 持久化，默认落盘到：
 
-- stale 清理时不会因为索引变化误删
-- prompt memory section 与 legacy 文本格式更接近
+```text
+.owl/memory/semantic-memory.db
+```
 
-## 6.2 `owl/semantic_memory.py`
-
-职责：跨运行长期记忆。
-
-当前实现要点：
-
-- 默认 SQLite backend
-- 数据库文件为 `.owl/memory/semantic-memory.db`
-- 支持 WAL
-- 支持 `put` / `put_many` / `get` / `search` / `invalidate_by_file` / `delete`
-- 支持 active / invalidated / superseded 生命周期
-
-当前 `SemanticRecord` 关键字段：
+`SemanticRecord` 的关键字段包括：
 
 - `record_id`
 - `category`
@@ -258,173 +123,106 @@ Layer 4: Recall / Context
 - `importance_score`
 - `invalidated_at`
 - `superseded_by`
-- `created_at`
-- `updated_at`
 
-这次重构后的关键变化：
+这意味着长期记忆不再只是“内存里的概念层”，而是具备真实生命周期管理的 repo 级知识库。
 
-- `file_path` 成为一等字段，而不是只靠 `repo_path`
-- 支持文件粒度失效
-- 支持 active record 查询
-- 支持 SQLite 与内存 fallback 的一致接口
+## 3.4 与结构配套的辅助模块
 
-## 6.3 `owl/memory_writer.py`
+为了让这套结构真正可运行，当前代码还引入了三个关键辅助模块：
 
-职责：工具执行后把信息写入短期记忆。
+- `owl/memory_validity.py`
+  负责文件指纹记录、语义记录有效性校验、失效过滤。
+- `owl/stale_observation_guard.py`
+  负责 working memory 中陈旧 observation 的检测与移除。
+- `owl/memory_config.py`
+  负责集中收敛记忆相关阈值、限制和排序参数。
 
-当前定位：
+---
 
-- `should_write()` 负责决策
-- `write_working()` 负责写入 `WorkingMemory`
-- `write_semantic()` 仍然存在，但更像兼容层 / 辅助接口
+## 4. 记忆模块的作用
 
-当前决策类型主要包括：
+## 4.1 `owl/working_memory.py`
 
-- `observation`
-- `file_summary`
-- `file_modified`
+作用：承载当前任务的短期工作状态。
 
-当前实际 runtime 行为是：
+它不是长期知识库，而是当前 run 的“思考台面”，主要保存：
 
-- 工具执行后主写入路径是 working memory
-- semantic promotion 主要通过 compactor 完成
+- 刚刚通过工具拿到的事实
+- 当前正在形成的判断与假设
+- 当前可能要修改的文件和目标
+- 还没验证完成的待确认事项
 
-也就是说，writer 不再是长期记忆的主要桥梁。
+它的价值在于保证模型在多步工具调用之间，不需要每一轮都重新读取所有上下文。
 
-## 6.4 `owl/memory_compactor.py`
+## 4.2 `owl/memory_writer.py`
 
-职责：把短期记忆整理成长期可复用知识。
+作用：统一记忆写入入口。
 
-当前包含两条能力线：
+当前设计里，所有工具结果不会直接任意写入长期记忆，而是先经过 `MemoryWriter` 判定：
 
-### A. 旧式 compact + promote
+- 该不该写
+- 写成什么类别
+- 先进入 working memory 还是跳过
 
-- `compact_working_memory()`
-- `promote_to_semantic()`
-- `compact_and_promote()`
+这使得记忆写入从“分散副作用”变成“显式策略动作”，降低多写入路径带来的不一致。
 
-### B. 新式 structured compaction
+## 4.3 `owl/memory_compactor.py`
 
-- `pre_compaction_flush()`
-- `structured_compaction()`
-- `compact_and_promote_v2()`
+作用：负责 working memory 的压缩、清理与长期提升。
 
-`compact_and_promote_v2()` 现在是 runtime 结束阶段的核心入口。
+它是当前架构里 working -> semantic 的正式桥梁，主要承担：
 
-它做四件事：
+- 去重
+- 结构化压缩
+- 总结提炼
+- 过程信息转长期知识
+- procedure candidate 检测
 
-1. 从 `WorkingMemory` 生成 `CompactionSchema`
-2. 对 working memory 去重
-3. 把足够稳定的 file summary 提升到 semantic memory
-4. 写入 run-level structured semantic records
+它的意义在于把“运行时噪声”变成“后续任务可复用知识”，避免长期记忆被大量原始 observation 直接淹没。
 
-另外它还集成：
+## 4.4 `owl/semantic_memory.py`
 
-- `ProcedureCandidateDetector`
+作用：保存跨运行可复用的长期知识。
 
-即在 run 结束时检测是否出现可以沉淀为 procedure/skill 的行为模式。
+这部分记忆主要存储：
 
-## 6.5 `owl/memory_retriever.py`
+- 某个文件或模块的重要事实
+- 已验证的结构性认识
+- 可以跨轮复用的经验性知识
+- 被压缩后的长期 summary
 
-职责：统一 recall。
+同时它还承担生命周期管理：
 
-当前会从两类来源召回：
+- active
+- invalidated
+- superseded
 
-- `WorkingMemory`
-- `SemanticMemory`
+也就是说，长期记忆不是只会“越积越多”，而是可以被失效、替换和过滤。
 
-返回统一的 `RecallResult`，其中包含：
+## 4.5 `owl/memory_retriever.py`
 
-- `source`
-- `content`
-- `repo_path`
-- `relevance_score`
-- `combined_score`
-- `freshness_score`
-- `importance_score`
-- `recall_rationale`
-- `metadata`
+作用：按任务相关性召回 working memory 和 semantic memory。
 
-当前 recall 行为：
+它负责把“仓库里已有的记忆”转化成“当前任务真正需要的记忆候选集”，避免全量拉回。
 
-- working memory 结果优先作为本轮上下文
-- semantic memory 结果可走 quality-aware 排序
-- recall 前可接入 validity checker 过滤 stale semantic records
+## 4.6 `owl/recall_ranker.py`
 
-## 6.6 `owl/recall_ranker.py`
+作用：对召回结果进行质量排序。
 
-职责：对 semantic recall 做质量排序。
-
-当前排序考虑：
+当前排序维度包括：
 
 - relevance
 - freshness
 - importance
 - diversity
 
-并通过 `memory_config.py` 中的参数统一控制：
+这一步的目标不是简单“找出包含相同关键词的记录”，而是优先把更相关、更新鲜、更重要、且不重复的记忆送入 prompt。
 
-- freshness half-life
-- MMR lambda
-- weight 配置
-- similarity threshold
+## 4.7 `owl/context_manager.py`
 
-## 6.7 `owl/memory_validity.py`
+作用：把记忆真正装入 prompt。
 
-职责：文件级有效性判断。
-
-当前两个核心类：
-
-- `FileFingerprintTracker`
-- `SemanticRecordValidityChecker`
-
-### FileFingerprintTracker
-
-维护：
-
-- `path -> fingerprint`
-- `alias -> resolved path`
-
-支持：
-
-- `record()`
-- `update()`
-- `check()`
-- `check_from_file()`
-
-### SemanticRecordValidityChecker
-
-对 semantic record 做四类判断：
-
-- `INVALIDATED`
-- `SUPERSEDED`
-- `STALE`
-- `VALID`
-
-这让 semantic recall 可以基于真实文件状态过滤旧知识。
-
-## 6.8 `owl/stale_observation_guard.py`
-
-职责：在 run 内清理已经过期的 working observations。
-
-当前流程：
-
-1. 从 observation 的 `file_path` 或 summary 中提取路径
-2. 通过 `FileFingerprintTracker` 检查当前文件是否已变化
-3. 构造 `StaleObservation`
-4. 用 `observation_id` 精确删除对应 observation
-
-这次修改的关键点是：
-
-- 从“按索引删除”改为“按 observation_id 删除”
-
-这是一个很重要的稳定性修复。
-
-## 6.9 `owl/context_manager.py`
-
-职责：把 prefix / memory / relevant_memory / history / current_request 组装成 prompt。
-
-当前 section 顺序：
+当前 section 顺序为：
 
 ```text
 prefix
@@ -434,157 +232,307 @@ history
 current_request
 ```
 
-当前实现比旧版更清楚的地方：
+它会结合预算限制，对 memory、relevant memory 和 history 做裁剪与压缩，避免上下文全部被历史信息挤满。
 
-- 支持注入 `MemoryRetriever`
-- 支持 working / semantic memory source
-- relevant memory metadata 更完整
-- history 支持：
-  - 旧 `read_file` 重复读取压缩
-  - 旧 tool output 摘要化
-  - recent entries 保留更多信息
+## 4.8 `owl/memory_validity.py`
 
-另外，为了兼容旧行为，当前还保留了一个回退逻辑：
+作用：保证记忆引用的文件状态仍然有效。
 
-- 如果新 recall 只给出 trivial working-memory echo，而 legacy episodic recall 更有价值，则允许回退 legacy recall
+它通过文件指纹、版本信息和 freshness hash，让系统可以判断某条长期记忆是否仍对应当前文件状态。
 
-这是一种“以新架构为主，但不牺牲已有行为”的折中方案。
+## 4.9 `owl/stale_observation_guard.py`
 
-## 6.10 `owl/memory_config.py`
+作用：清理 working memory 中已经过期的 observation。
 
-职责：集中管理 memory 相关阈值。
-
-当前已统一的参数包括：
-
-- `RELEVANT_MEMORY_LIMIT`
-- `MAX_OBSERVATIONS`
-- `MAX_HYPOTHESES`
-- `MAX_CANDIDATES`
-- `MAX_PENDING`
-- `MIN_OBSERVATIONS_FOR_PROMOTION`
-- `DEFAULT_FRESHNESS_HALFLIFE`
-- `DEFAULT_MMR_LAMBDA`
-- `DEFAULT_WEIGHTS`
-- `SIMILARITY_THRESHOLD`
-- `MIN_TOKEN_LEN`
-
-这解决了“配置分散”的问题。
+如果文件在 observation 记录后又被修改，这个模块会尝试识别并移除陈旧 observation，减少旧事实对当前判断的误导。
 
 ---
 
-## 7. 当前的数据流
+## 5. 记忆系统的原理
 
-## 7.1 读文件
+## 5.1 原理一：短期记忆与长期记忆分层
 
-```text
-read_file
-  -> tool result
-  -> MemoryWriter.should_write(category=file_summary)
-  -> MemoryWriter.write_working()
-  -> WorkingMemory.add_observation(...)
-  -> FileFingerprintTracker.record(...)
-  -> 结束阶段由 MemoryCompactor 决定是否提升为 SemanticRecord
-```
+WorkingMemory 与 SemanticMemory 的职责被显式拆开：
 
-## 7.2 改文件
+- `WorkingMemory` 只负责当前 run 内的高相关动态状态
+- `SemanticMemory` 只负责跨 run 可复用的长期知识
 
-```text
-write_file / patch_file
-  -> tool result
-  -> MemoryWriter.should_write(category=file_modified)
-  -> MemoryWriter.write_working()
-  -> FileFingerprintTracker.update(...)
-  -> SemanticMemory.invalidate_by_file(path)
-  -> StaleObservationGuard 清理基于旧文件内容的 working observations
-```
+这样做的核心原因是两者的生命周期、噪声容忍度和使用方式完全不同。
 
-## 7.3 Recall
+如果把两者混在一起，就会出现两个问题：
 
-```text
-用户请求
-  -> ContextManager.build()
-  -> MemoryRetriever.recall_for_task()
-  -> WorkingMemory recall
-  -> SemanticMemory search
-  -> SemanticRecordValidityChecker 过滤 stale / invalidated / superseded
-  -> RecallRanker 排序
-  -> relevant_memory section
-```
+1. 当前 run 的临时推理噪声污染长期知识
+2. 长期知识过多反过来淹没当前任务的即时上下文
 
-## 7.4 Run 结束
+## 5.2 原理二：长期记忆只能通过压缩链路生成
 
-```text
-run finished
-  -> MemoryCompactor.compact_and_promote_v2()
-  -> pre_compaction_flush
-  -> compact_working_memory
-  -> promote_to_semantic
-  -> structured_compaction
-  -> procedure candidate detection
-  -> trace / report / metrics
-```
+当前架构中，长期记忆的正式来源是：
 
----
+`WorkingMemory -> MemoryCompactor -> SemanticMemory`
 
-## 8. Feature Flags
+这意味着长期记忆不鼓励直接写入，而是先经过观察、筛选、去重和结构化提炼后再进入持久层。
 
-当前 `owl/runtime.py` 中默认开启的 memory 相关 feature：
+它的收益是：
 
-```python
-DEFAULT_FEATURE_FLAGS = {
-    "memory": True,
-    "relevant_memory": True,
-    "context_reduction": True,
-    "prompt_cache": True,
-    "workspace_refresh": True,
-    "context_discovery": True,
-    "structured_compaction": True,
-    "memory_validity": True,
-    "stale_guard": True,
-    "quality_recall": True,
-    "procedure_detection": True,
-}
-```
+- 单一事实来源更清晰
+- 长期记忆质量更稳定
+- 更容易解释一条语义记忆是如何形成的
 
-含义可以概括为：
+## 5.3 原理三：召回不是“有就全拿”，而是“先找、再排、再裁”
 
-- `memory`: 是否启用记忆系统
-- `relevant_memory`: 是否做 recall 注入
-- `structured_compaction`: 是否启用新 compaction 主路径
-- `memory_validity`: 是否启用 semantic record validity 检查
-- `stale_guard`: 是否启用 working observation stale 清理
-- `quality_recall`: 是否启用 recall ranker
-- `procedure_detection`: 是否在结束阶段检测 procedure candidate
+当前 recall 原理分三步：
 
----
+1. `MemoryRetriever` 先从 working/semantic 中找候选
+2. `RecallRanker` 根据相关性、时效性、重要性、多样性排序
+3. `ContextManager` 再根据 prompt 预算做裁剪和注入
 
-## 9. 兼容层与当前取舍
+这让记忆系统更像一个“检索与组装系统”，而不是“历史堆叠系统”。
 
-当前还没有完全删除 legacy memory，而是采取了兼容保留策略。
+## 5.4 原理四：文件状态变化必须反向影响记忆有效性
 
-保留原因：
+代码仓库场景和普通聊天场景最大的不同在于：文件内容会不断变化。
 
-- 旧 session 结构仍依赖 `session["memory"]`
-- 旧测试仍依赖 `files` / `notes` / `file_summaries`
-- 一些 prompt 行为还需要 legacy recall 兜底
+因此 Owl 记忆系统有一个关键原则：
 
-因此当前是“双层并存，但职责已更清晰”的状态：
+> 记忆不能只考虑“曾经是否正确”，还必须考虑“现在是否仍然成立”。
 
-- 新架构负责真实 memory pipeline
-- legacy layer 负责兼容旧接口和旧测试
+围绕这个原则，当前实现引入了：
 
-这比改造前要好很多，因为现在：
+- `FileFingerprintTracker`
+- `SemanticRecordValidityChecker`
+- `StaleObservationGuard`
 
-- working / semantic 已经有清晰职责
-- prompt 主要走新 context manager
-- semantic store 已经可持久化
-- stale / validity 已经真正接入运行时
+对应到实际流程：
+
+- `read_file` 后记录文件指纹
+- `write_file` / `patch_file` 后触发 invalidation
+- recall 时过滤 stale / invalidated / superseded record
+
+## 5.5 原理五：上下文预算必须被显式管理
+
+记忆系统的目标不是“尽量多塞信息”，而是“在有限预算下提供最有用的信息”。
+
+因此当前实现把以下内容都纳入预算管理：
+
+- memory section 长度
+- relevant memory section 长度
+- history section 长度
+- section floor / section limit
+- reduction order
+
+这保证了 prompt 构建过程可解释、可裁剪、可追踪，而不是不可控增长。
+
+## 5.6 原理六：记忆系统必须可观测
+
+一套真实可维护的记忆系统，不能只靠最终任务是否完成来判断优劣。
+
+因此当前实现把记忆相关行为纳入：
+
+- `trace.jsonl`
+- `report.json`
+- `metrics`
+- benchmark artifact
+
+并为记忆写入、记忆召回、记忆排序、stale skip 等行为定义了可跟踪事件。
 
 ---
 
-## 10. 与本次代码修改直接对应的文件
+## 6. 评价标准
 
-这轮 memory 架构更新直接涉及的核心文件：
+记忆系统的评价不能只看“有没有 memory 模块”，而要看它是否真正提升了 agent 的任务执行质量与稳定性。当前可以从五类标准评估。
+
+## 6.1 结构正确性
+
+关注点：
+
+- 写入链路是否单一
+- 长短期记忆是否职责清晰
+- 召回入口是否统一
+- 参数是否集中配置
+
+当前主要观察项：
+
+- 是否以 `MemoryWriter` 作为写入入口
+- 是否以 `MemoryCompactor` 作为 working -> semantic 的正式桥梁
+- 是否以 `MemoryRetriever` 作为 recall 主入口
+- 关键阈值是否收敛到 `owl/memory_config.py`
+
+## 6.2 召回质量
+
+关注点：
+
+- 是否能召回正确记忆
+- 是否减少无关记忆进入 prompt
+- 是否避免重复、过期或冲突记忆污染当前任务
+
+当前可用指标：
+
+- `selected_count`
+- `relevant_memory` 命中情况
+- `repeated_reads`
+- `repeated_identical_call_count`
+- invalidated / stale 过滤情况
+
+对应代码与产物：
+
+- `owl/memory_retriever.py`
+- `owl/recall_ranker.py`
+- `report.json`
+- memory experiments
+
+## 6.3 上下文质量
+
+关注点：
+
+- prompt 长度是否稳定
+- relevant memory 是否先于 history 被合理裁剪
+- 当前请求是否始终保留
+- 历史信息是否保留关键线索而不是全部原样堆叠
+
+当前可用指标：
+
+- `prompt_chars`
+- `memory_chars`
+- `relevant_selected_count`
+- section budgets / reductions metadata
+
+对应代码与产物：
+
+- `owl/context_manager.py`
+- `owl/context_builder.py`
+- `context_built` trace event
+- `report.json`
+
+## 6.4 运行稳定性
+
+关注点：
+
+- 多步任务中是否减少重复读文件
+- 是否降低 no-progress loop
+- 文件变更后是否正确失效旧记忆
+- 测试环境与真实运行是否隔离
+
+当前可用指标：
+
+- `repeated_reads`
+- `no_progress_loop_count`
+- `premature_done`
+- semantic DB 隔离情况
+- stale cleanup 行为
+
+对应代码与产物：
+
+- `owl/stale_observation_guard.py`
+- `owl/memory_validity.py`
+- `tests/conftest.py`
+- `trace.jsonl`
+
+## 6.5 可解释性与可观测性
+
+关注点：
+
+- 记忆何时写入
+- 记忆何时召回
+- 为什么某条记忆进入 prompt
+- trace 是否能完整讲清一次 run 的记忆行为
+
+当前可用指标：
+
+- `memory_written`
+- `memory_recalled`
+- `memory_ranked`
+- `memory_skipped_stale`
+- trace completeness / order validity
+
+对应代码与产物：
+
+- `owl/trace_schema.py`
+- `owl/trace_validator.py`
+- `trace.jsonl`
+- `report.json`
+
+---
+
+## 7. 当前表现
+
+## 7.1 架构层面的表现
+
+与改造前相比，当前记忆系统已经表现出几个明显变化：
+
+1. 主链路已经收敛为 `Tool Result -> WorkingMemory -> MemoryCompactor -> SemanticMemory`，长期记忆写入不再是多路散射。
+2. `SemanticMemory` 已经是 repo 级 SQLite 持久化，而不是仅存在于进程内。
+3. recall 由新链路主导，legacy memory 主要退回兼容层角色。
+4. stale observation cleanup 与 semantic validity filtering 已接入真实运行链路，不再是孤立组件。
+5. 关键阈值已集中到 `owl/memory_config.py`，调参与维护成本明显降低。
+
+## 7.2 运行时表现
+
+从当前代码实现看，记忆系统已经具备以下运行时能力：
+
+- 工具执行后能够把高价值 observation 写入 WorkingMemory
+- 运行结束后能够进行压缩、去重与长期提升
+- 后续任务能够从 semantic memory 中按相关性召回长期知识
+- 文件变化后能够对相关语义记忆做 invalidation
+- prompt 组装时能够优先注入 relevant memory，并控制上下文预算
+
+这意味着 Owl 的记忆系统已经不只是“保存历史文本”，而是形成了完整的写入、提炼、召回、过滤和注入闭环。
+
+## 7.3 验证与测试表现
+
+当前仓库内可直接确认的验证结果包括：
+
+- memory 重构相关代码回归测试已通过：`312 passed, 1 skipped`
+- 固定 benchmark 工件 `benchmarks/benchmark-v1.json` 已记录：
+  - `task_count = 6`
+  - `pass_rate = 1.0`
+
+这些结果至少说明两件事：
+
+1. 当前记忆相关重构没有破坏基础 benchmark 与回归测试。
+2. 记忆链路、上下文链路与运行工件输出已经能在固定任务集上稳定工作。
+
+## 7.4 评测能力上的表现
+
+除了已有通过结果，当前代码还已经具备继续评估 memory 的基础设施：
+
+- fixed regression benchmark
+- behavioral benchmark
+- failure benchmark
+- trace completeness / order validation
+- small-scale memory experiment
+- large-scale memory experiment
+- memory experiments v2
+
+当前代码中已经明确把以下指标作为 memory 效果评估项：
+
+- `pass_rate`
+- `prompt_chars`
+- `avg_tool_steps`
+- `repeated_reads`
+- `relevant_selected_count`
+- `trace_completeness_rate`
+- `memory_event_rate`
+
+这说明系统不仅实现了记忆模块，也已经把“如何证明记忆有效”纳入工程体系。
+
+## 7.5 当前仍然存在的边界
+
+虽然当前表现已经明显优于重构前，但仍存在几个现实边界：
+
+- legacy compatibility layer 仍未完全移除
+- 某些场景下 `ContextManager` 仍保留 legacy recall 回退逻辑
+- 当前长期检索主要还是基于现有 token / SQLite 机制，尚未引入更强语义检索能力
+- memory experiments 的部分结果在代码中已具备框架，但不是每次提交都自动生成新的实验工件
+
+因此，当前阶段更准确的判断是：
+
+> Owl 的记忆系统主干架构已经成型，具备真实可运行、可验证、可维护的工程状态，但仍处在“持续收敛兼容层与增强评测”的阶段。
+
+---
+
+## 8. 文件映射
+
+与记忆系统直接相关的核心文件如下：
 
 - `owl/runtime.py`
 - `owl/working_memory.py`
@@ -593,92 +541,29 @@ DEFAULT_FEATURE_FLAGS = {
 - `owl/memory_retriever.py`
 - `owl/memory_compactor.py`
 - `owl/context_manager.py`
+- `owl/context_builder.py`
 - `owl/memory_validity.py`
 - `owl/stale_observation_guard.py`
 - `owl/recall_ranker.py`
 - `owl/procedure_candidate_detector.py`
 - `owl/memory_config.py`
 - `owl/memory_utils.py`
+- `owl/trace_schema.py`
+- `owl/trace_validator.py`
+- `owl/metrics.py`
 
-为保证测试环境和 repo 隔离，还补充修改了：
+用于验证和隔离测试环境的配套文件：
 
 - `tests/conftest.py`
-- `pyproject.toml`
-
-这些配套改动保证：
-
-- pytest 使用仓库内临时目录
-- semantic DB 在测试中按 case 隔离
-- clone 到别的环境后，测试行为更稳定、更可复制
-
----
-
-## 11. 验证状态
-
-本轮 memory 架构相关代码已经完成一次完整回归验证。
-
-当前测试结果：
-
-```text
-312 passed, 1 skipped
-```
-
-唯一 skip 为：
-
-- Windows 无 symlink 权限时跳过 symlink 安全测试
-
-这属于环境权限差异，不属于 memory 架构故障。
+- `tests/test_memory_new_modules.py`
+- `tests/test_pico.py`
+- `tests/test_safety_invariants.py`
+- `benchmarks/benchmark-v1.json`
+- `benchmarks/refactor_behavior_v1.json`
+- `benchmarks/refactor_failure_v1.json`
 
 ---
 
-## 12. 后续仍可继续优化的方向
+## 9. 一句话总结
 
-虽然当前架构已经明显比旧实现稳定，但仍有进一步收敛空间：
-
-### 12.1 彻底移除 legacy recall 混用
-
-当前 `ContextManager` 仍允许在某些场景下回退 legacy episodic recall。
-
-后续理想状态：
-
-- 所有 relevant memory 都来自 `MemoryRetriever`
-- legacy 只保留 session 兼容，不再参与 prompt 决策
-
-### 12.2 让 `MemoryWriter.write_semantic()` 彻底退场
-
-当前语义上已经由 compactor 主导，但代码层面接口仍保留。
-
-后续可以继续收敛成：
-
-- writer 只负责 working
-- compactor 唯一负责 semantic
-
-### 12.3 进一步增强 semantic search
-
-当前 SQLite search 已经可用，但后续还可以继续增强：
-
-- 更细粒度 tags 过滤
-- 更稳定的 path-aware tokenization
-- 更强的 duplicate suppression
-
-### 12.4 继续减少 runtime God Class 压力
-
-虽然 memory 主链路已经拆出来了，但 `owl/runtime.py` 仍然承担了较多 orchestration 责任。
-
-后续可以继续拆：
-
-- tool execution coordinator
-- memory pipeline coordinator
-- prompt pipeline coordinator
-
----
-
-## 13. 一句话总结
-
-这次 memory 架构更新，本质上完成了三件关键事情：
-
-1. 把短期记忆、长期记忆、压缩提升、召回过滤这几层真正拆开了。
-2. 把 semantic memory 从“概念上的长期记忆”变成了“repo 级可持久化长期记忆”。
-3. 把 stale detection、validity check、prompt recall、测试隔离都接进了真实运行链路。
-
-因此，当前 Owl 的 memory 系统已经从“新旧方案混杂的半重构状态”，进入了“主干架构已成型、兼容层仍在但边界更清晰”的阶段。
+Owl 当前的记忆系统，本质上是一套围绕真实代码仓库场景设计的分层记忆架构：它把当前任务状态、长期知识沉淀、文件有效性校验、召回排序和 prompt 预算控制组合成一条完整闭环，使 agent 在多步工程任务中具备更强的上下文保持、经验复用、失效过滤和可解释评估能力。
