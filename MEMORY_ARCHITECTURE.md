@@ -1,4 +1,4 @@
-# Owl Memory Architecture
+# Owl Memory Architecture(记忆模块介绍)  :)
 
 > Updated: 2026-04-16  
 > Scope: current repository implementation in `owl/`  
