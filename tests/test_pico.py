@@ -53,6 +53,28 @@ def test_agent_runs_tool_then_final(tmp_path):
     assert "hello.txt" in agent.session["memory"]["files"]
 
 
+def test_agent_tool_execution_does_not_write_semantic_directly(tmp_path):
+    (tmp_path / "hello.txt").write_text("alpha\nbeta\n", encoding="utf-8")
+    agent = build_agent(
+        tmp_path,
+        [
+            '<tool>{"name":"read_file","args":{"path":"hello.txt","start":1,"end":2}}</tool>',
+            '<tool>{"name":"read_file","args":{"path":"hello.txt","start":1,"end":2}}</tool>',
+            "<final>Finished.</final>",
+        ],
+    )
+    calls = []
+
+    def _forbid_direct_semantic_write(*args, **kwargs):
+        calls.append((args, kwargs))
+        raise AssertionError("write_semantic should not be called during tool execution")
+
+    agent._memory_writer.write_semantic = _forbid_direct_semantic_write
+
+    assert agent.ask("Inspect hello.txt twice") == "Finished."
+    assert calls == []
+
+
 def test_agent_updates_task_summary_on_each_request(tmp_path):
     agent = build_agent(
         tmp_path,

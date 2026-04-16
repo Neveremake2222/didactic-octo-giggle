@@ -3,6 +3,8 @@ import shlex
 import sys
 from unittest.mock import patch
 
+import pytest
+
 from owl import FakeModelClient, MiniAgent, SessionStore, WorkspaceContext
 from owl import cli as mini_cli
 from owl.task_state import TaskState
@@ -38,7 +40,12 @@ def test_workspace_escape_is_rejected(tmp_path):
 def test_symlink_path_traversal_is_rejected(tmp_path):
     outside = tmp_path.parent / f"{tmp_path.name}-outside.txt"
     outside.write_text("outside\n", encoding="utf-8")
-    (tmp_path / "linked.txt").symlink_to(outside)
+    try:
+        (tmp_path / "linked.txt").symlink_to(outside)
+    except OSError as exc:
+        if getattr(exc, "winerror", None) == 1314:
+            pytest.skip("symlink creation requires elevated Windows privileges")
+        raise
     agent = build_agent(tmp_path, [])
 
     result = agent.run_tool("read_file", {"path": "linked.txt"})

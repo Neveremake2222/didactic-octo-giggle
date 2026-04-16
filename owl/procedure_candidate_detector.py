@@ -15,6 +15,9 @@ from collections import Counter
 from dataclasses import dataclass, field
 from typing import Any
 
+from .memory_utils import extract_path_from_text, make_record_id
+from .working_memory import WorkingMemory
+
 
 # ---------------------------------------------------------------------------
 # ProcedureCandidate
@@ -81,7 +84,7 @@ class ProcedureCandidateDetector:
 
     def detect_from_working_memory(
         self,
-        wm: Any,
+        wm: WorkingMemory,
         run_id: str,
     ) -> list[ProcedureCandidate]:
         """从 working memory 中检测程序性经验候选。
@@ -131,7 +134,7 @@ class ProcedureCandidateDetector:
     # -------------------------------------------------------------------------
 
     def _detect_repeated_access(
-        self, wm: Any, run_id: str,
+        self, wm: WorkingMemory, run_id: str,
     ) -> list[ProcedureCandidate]:
         """检测同一文件被读取 >= REPEATED_ACCESS_THRESHOLD 次。"""
         observations = getattr(wm, "recent_observations", [])
@@ -158,7 +161,7 @@ class ProcedureCandidateDetector:
         return candidates
 
     def _detect_hypothesis_flow(
-        self, wm: Any, run_id: str,
+        self, wm: WorkingMemory, run_id: str,
     ) -> list[ProcedureCandidate]:
         """检测假设 + 待验证事项同时存在的模式。"""
         hypotheses = getattr(wm, "active_hypotheses", [])
@@ -179,7 +182,7 @@ class ProcedureCandidateDetector:
         )]
 
     def _detect_multi_step_completion(
-        self, wm: Any, run_id: str,
+        self, wm: WorkingMemory, run_id: str,
     ) -> list[ProcedureCandidate]:
         """检测连续多步含完成关键词的模式。"""
         observations = getattr(wm, "recent_observations", [])
@@ -209,21 +212,10 @@ class ProcedureCandidateDetector:
 
     @staticmethod
     def _extract_path(summary: str) -> str:
-        """从观察摘要中提取文件路径。"""
-        if summary.startswith("read "):
-            parts = summary.split(":", 1)
-            path = parts[0].replace("read ", "").strip()
-            if path:
-                return path
-        for word in summary.split():
-            if "/" in word or word.endswith((".py", ".md", ".txt", ".json", ".yaml")):
-                clean = word.strip("[]():,.")
-                if clean:
-                    return clean
-        return ""
+        """从观察摘要中提取文件路径（委托到 memory_utils）。"""
+        return extract_path_from_text(summary)
 
 
 def _make_candidate_id(pattern_type: str, key: str) -> str:
-    """生成稳定的 candidate_id。"""
-    raw = f"{pattern_type}:{key}"
-    return hashlib.sha256(raw.encode("utf-8")).hexdigest()[:12]
+    """生成稳定的 candidate_id（委托到 memory_utils）。"""
+    return make_record_id(pattern_type, key, length=12)

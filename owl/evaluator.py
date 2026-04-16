@@ -21,6 +21,7 @@ from .evaluators.efficiency import EfficiencyEvaluator
 from .evaluators.safety import SafetyEvaluator
 
 BENCHMARK_SCHEMA_VERSION = 2
+ARTIFACT_SCHEMA_VERSION = 1
 DEFAULT_BENCHMARK_PATH = Path("benchmarks/coding_tasks.json")
 DEFAULT_ARTIFACT_PATH = Path("benchmarks/benchmark-v1.json")
 DEFAULT_MODEL_NAME = "FakeModelClient"
@@ -370,7 +371,7 @@ class BenchmarkEvaluator:
         rows = [self.run_task(task) for task in benchmark["tasks"]]
         summary = summarize_rows(rows)
         artifact = {
-            "schema_version": BENCHMARK_SCHEMA_VERSION,
+            "schema_version": ARTIFACT_SCHEMA_VERSION,
             "captured_at": _now_in_timezone(self.timezone_name),
             "runtime": {
                 "commit_sha": _git_value(["rev-parse", "HEAD"], cwd=self.repo_root),

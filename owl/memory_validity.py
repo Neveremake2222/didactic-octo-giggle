@@ -63,16 +63,29 @@ class FileFingerprintTracker:
     def __init__(self) -> None:
         # 绝对路径 -> SHA-256(content)
         self._index: dict[str, str] = {}
+        # 别名路径（通常是 repo 相对路径） -> 绝对路径
+        self._aliases: dict[str, str] = {}
 
-    def record(self, path: str, content: str) -> str:
+    def _resolve_lookup_path(self, path: str) -> str:
+        raw = str(path)
+        if raw in self._aliases:
+            return self._aliases[raw]
+        return str(Path(path).resolve())
+
+    def record(self, path: str, content: str, alias: str = "") -> str:
         """记录 path 的当前 fingerprint，返回该 fingerprint。"""
         fp = hashlib.sha256(content.encode("utf-8")).hexdigest()
-        self._index[str(Path(path).resolve())] = fp
+        resolved = str(Path(path).resolve())
+        self._index[resolved] = fp
+        if alias:
+            alias_key = str(alias)
+            self._aliases[alias_key] = resolved
+            self._index[alias_key] = fp
         return fp
 
     def check(self, path: str, current_fp: str) -> bool:
         """判断 current_fp 是否与记录一致。True = 已过期（不一致）。"""
-        resolved = str(Path(path).resolve())
+        resolved = self._resolve_lookup_path(path)
         stored = self._index.get(resolved, "")
         if not stored:
             return False  # 没有记录 → 无法判定 → 不标记为过期
@@ -85,7 +98,7 @@ class FileFingerprintTracker:
             (is_stale, current_fingerprint)
             is_stale=True 表示内容已变化
         """
-        resolved = str(Path(path).resolve())
+        resolved = self._resolve_lookup_path(path)
         try:
             content = Path(resolved).read_text(encoding="utf-8")
         except (OSError, UnicodeDecodeError):
@@ -96,17 +109,24 @@ class FileFingerprintTracker:
         is_stale = bool(stored and current_fp != stored)
         return is_stale, current_fp
 
-    def update(self, path: str, content: str) -> bool:
+    def update(self, path: str, content: str, alias: str = "") -> bool:
         """更新记录，返回内容是否发生了变化。"""
         resolved = str(Path(path).resolve())
         current_fp = hashlib.sha256(content.encode("utf-8")).hexdigest()
         stored = self._index.get(resolved, "")
         self._index[resolved] = current_fp
+        if alias:
+            alias_key = str(alias)
+            self._aliases[alias_key] = resolved
+            self._index[alias_key] = current_fp
         return current_fp != stored if stored else True
 
     def get(self, path: str) -> str:
         """获取某路径当前记录的 fingerprint。"""
-        return self._index.get(str(Path(path).resolve()), "")
+        raw = str(path)
+        if raw in self._index:
+            return self._index[raw]
+        return self._index.get(self._resolve_lookup_path(path), "")
 
     def __len__(self) -> int:
         return len(self._index)
@@ -129,7 +149,18 @@ class SemanticRecordValidityChecker:
       4. 否则 → VALID（无法判定时默认保留）
     """
 
-    def check_record(self, record: Any, tracker: FileFingerprintTracker) -> ValidityResult:
+    def __init__(self, workspace_root: str = "") -> None:
+        self.workspace_root = str(workspace_root or "")
+
+    def _resolve_record_path(self, path: str) -> Path:
+        raw = Path(str(path))
+        if raw.is_absolute():
+            return raw
+        if self.workspace_root:
+            return (Path(self.workspace_root) / raw).resolve()
+        return raw.resolve()
+
+    def check_record(self, record: Any, tracker: FileFingerprintTracker | None = None) -> ValidityResult:
         """检查一条 SemanticRecord 的有效性。"""
         record_id = getattr(record, "record_id", "")
 
@@ -152,14 +183,28 @@ class SemanticRecordValidityChecker:
             )
 
         # 规则 3: 检查文件 fingerprint
-        repo_path = getattr(record, "repo_path", "")
-        if repo_path:
-            is_stale, current_fp = tracker.check_from_file(repo_path)
+        file_path = getattr(record, "file_path", "") or getattr(record, "repo_path", "")
+        if file_path:
+            resolved_path = self._resolve_record_path(file_path)
+            if tracker is not None:
+                is_stale, current_fp = tracker.check_from_file(str(resolved_path))
+            else:
+                try:
+                    content = resolved_path.read_text(encoding="utf-8")
+                    current_fp = hashlib.sha256(content.encode("utf-8")).hexdigest()
+                    is_stale = False
+                except (OSError, UnicodeDecodeError):
+                    current_fp = ""
+                    is_stale = True
+
+            expected_fp = getattr(record, "file_version", "") or getattr(record, "freshness_hash", "")
+            if expected_fp and current_fp and current_fp != expected_fp:
+                is_stale = True
             if is_stale:
                 return ValidityResult(
                     record_id=record_id,
                     status="STALE",
-                    reason=f"Underlying file {repo_path} has changed.",
+                    reason=f"Underlying file {file_path} has changed.",
                     suggested_action="refresh",
                 )
 

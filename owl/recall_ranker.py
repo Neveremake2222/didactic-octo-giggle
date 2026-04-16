@@ -23,6 +23,13 @@ from datetime import datetime, timezone
 from typing import Any
 
 from .semantic_memory import SemanticRecord
+from .memory_utils import compute_relevance, compute_similarity
+from .memory_config import (
+    DEFAULT_FRESHNESS_HALFLIFE,
+    DEFAULT_MMR_LAMBDA,
+    DEFAULT_WEIGHTS,
+    SIMILARITY_THRESHOLD,
+)
 
 
 # ---------------------------------------------------------------------------
@@ -81,24 +88,6 @@ class RecallReport:
 # ---------------------------------------------------------------------------
 # RecallRanker
 # ---------------------------------------------------------------------------
-
-
-# 默认衰减半衰期：7 天
-DEFAULT_FRESHNESS_HALFLIFE = 7 * 24 * 3600
-
-# MMR lambda 参数（0 = 只看多样性，1 = 只看相关性）
-DEFAULT_MMR_LAMBDA = 0.3
-
-# 默认四维权重
-DEFAULT_WEIGHTS = {
-    "relevance": 0.40,
-    "freshness": 0.25,
-    "importance": 0.20,
-    "diversity": 0.15,
-}
-
-# 相似度阈值（>85% 视为重复）
-SIMILARITY_THRESHOLD = 0.85
 
 
 class RecallRanker:
@@ -218,15 +207,8 @@ class RecallRanker:
 
     @staticmethod
     def _compute_relevance(text: str, query: str) -> float:
-        """Token overlap 相关性。"""
-        query_tokens = {t.lower() for t in query.split() if len(t) > 2}
-        if not query_tokens:
-            return 0.0
-        text_tokens = {t.lower() for t in text.split() if len(t) > 2}
-        if not text_tokens:
-            return 0.0
-        overlap = len(query_tokens & text_tokens)
-        return min(overlap / len(query_tokens), 1.0)
+        """Token overlap 相关性（已统一到 memory_utils）。"""
+        return compute_relevance(text, query)
 
     def _compute_freshness(self, created_at: str, now_dt: datetime) -> float:
         """指数衰减新鲜度。1.0 = 刚创建，~0.5 = 一个半衰期。"""
@@ -259,11 +241,5 @@ class RecallRanker:
 
     @staticmethod
     def _compute_similarity(text1: str, text2: str) -> float:
-        """简单的 Jaccard 相似度。"""
-        tokens1 = {t.lower() for t in text1.split() if len(t) > 2}
-        tokens2 = {t.lower() for t in text2.split() if len(t) > 2}
-        if not tokens1 or not tokens2:
-            return 0.0
-        intersection = len(tokens1 & tokens2)
-        union = len(tokens1 | tokens2)
-        return intersection / union if union > 0 else 0.0
+        """Jaccard 相似度（已统一到 memory_utils）。"""
+        return compute_similarity(text1, text2)

@@ -16,6 +16,8 @@ from typing import Any
 from .semantic_memory import SemanticMemory, SemanticRecord
 from .working_memory import WorkingMemory
 from .recall_ranker import RecallRanker, RecallReport
+from .memory_utils import compute_relevance
+from .memory_validity import FileFingerprintTracker, SemanticRecordValidityChecker
 
 
 @dataclass
@@ -53,6 +55,7 @@ class RecallResult:
             "freshness_score": self.freshness_score,
             "importance_score": self.importance_score,
             "recall_rationale": self.recall_rationale,
+            "metadata": dict(self.metadata),
         }
 
 
@@ -69,9 +72,17 @@ class MemoryRetriever:
       )
     """
 
-    def __init__(self, ranker: RecallRanker | None = None, quality_recall: bool = True):
+    def __init__(
+        self,
+        ranker: RecallRanker | None = None,
+        quality_recall: bool = True,
+        validity_checker: SemanticRecordValidityChecker | None = None,
+        fingerprint_tracker: FileFingerprintTracker | None = None,
+    ):
         self.ranker = ranker or RecallRanker()
         self.quality_recall = quality_recall
+        self.validity_checker = validity_checker
+        self.fingerprint_tracker = fingerprint_tracker
 
     def recall_for_task(
         self,
@@ -119,6 +130,7 @@ class MemoryRetriever:
                     source="working",
                     content=wm.task_summary,
                     relevance_score=score + 1.0,  # working memory 加权
+                    metadata={"kind": "task_summary"},
                 ))
 
         # 最近观察
@@ -129,6 +141,12 @@ class MemoryRetriever:
                     source="working",
                     content=obs.summary,
                     relevance_score=score + 0.5,
+                    repo_path=getattr(obs, "file_path", ""),
+                    metadata={
+                        "kind": "observation",
+                        "tool_name": getattr(obs, "tool_name", ""),
+                        "observation_id": getattr(obs, "observation_id", ""),
+                    },
                 ))
 
         # 候选目标
@@ -140,6 +158,7 @@ class MemoryRetriever:
                     content=target,
                     repo_path=target,
                     relevance_score=score + 0.3,
+                    metadata={"kind": "candidate_target"},
                 ))
 
         return results
@@ -150,9 +169,17 @@ class MemoryRetriever:
         """从 semantic memory 召回（支持 quality-aware 排序）。"""
         results: list[RecallResult] = []
 
+        raw_records = sm.search(query=task, top_k=top_k * 3 if self.quality_recall and now_ts else 10)
+        if self.validity_checker is not None:
+            valid_records = []
+            for record in raw_records:
+                validity = self.validity_checker.check_record(record, self.fingerprint_tracker)
+                if validity.suggested_action == "keep":
+                    valid_records.append(record)
+            raw_records = valid_records
+
         if self.quality_recall and now_ts:
             # Phase 4: 过量获取，再由 ranker 精排
-            raw_records = sm.search(query=task, top_k=top_k * 3)
             report = self.ranker.rank(raw_records, task, now_ts, top_k=top_k)
             for item in report.items:
                 results.append(RecallResult(
@@ -163,11 +190,11 @@ class MemoryRetriever:
                     freshness_score=item.freshness_score,
                     importance_score=item.importance_score,
                     recall_rationale=item.recall_rationale,
+                    metadata={"record_id": item.record_id},
                 ))
         else:
             # Phase 1 fallback: 简单 token overlap
-            records = sm.search(query=task, top_k=10)
-            for record in records:
+            for record in raw_records:
                 score = self._compute_relevance(record.content, task)
                 if score > 0:
                     results.append(RecallResult(
@@ -175,6 +202,12 @@ class MemoryRetriever:
                         content=record.content,
                         repo_path=record.repo_path,
                         relevance_score=score,
+                        metadata={
+                            "record_id": record.record_id,
+                            "category": record.category,
+                            "file_path": record.file_path,
+                            "source_run_id": record.source_run_id,
+                        },
                     ))
 
         return results
@@ -184,17 +217,6 @@ class MemoryRetriever:
         """简单的关键词重叠相关性计算。
 
         不使用 embedding，只做 token 级别的重叠度。
+        已统一使用 memory_utils.compute_relevance()。
         """
-        query_tokens = {t.lower() for t in query.split() if len(t) > 2}
-        if not query_tokens:
-            return 0.0
-
-        text_tokens = {t.lower() for t in text.split() if len(t) > 2}
-        if not text_tokens:
-            return 0.0
-
-        overlap = len(query_tokens & text_tokens)
-        if overlap == 0:
-            return 0.0
-
-        return overlap / len(query_tokens)
+        return compute_relevance(text, query)

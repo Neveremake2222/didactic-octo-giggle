@@ -21,18 +21,14 @@ from datetime import datetime, timezone
 from typing import Any
 
 
+from .memory_config import MAX_OBSERVATIONS, MAX_HYPOTHESES, MAX_CANDIDATES, MAX_PENDING
+
+
 def _now_iso() -> str:
     return datetime.now(timezone.utc).isoformat()
 
 
-# 观察记录的上限
-MAX_OBSERVATIONS = 8
-# 假设记录的上限
-MAX_HYPOTHESES = 4
-# 候选修改点的上限
-MAX_CANDIDATES = 6
-# 待验证事项的上限
-MAX_PENDING = 6
+# 观察记录的上限由 memory_config.MAX_OBSERVATIONS 统一管理
 
 
 @dataclass
@@ -45,10 +41,17 @@ class Observation:
     # Phase 2: 文件指纹追踪
     file_path: str = ""
     file_fingerprint: str = ""
+    # Phase 2 竞态修复：稳定 ID 替代索引
+    observation_id: str = ""
 
     def __post_init__(self):
         if not self.created_at:
             self.created_at = _now_iso()
+        if not self.observation_id:
+            Observation._counter += 1
+            self.observation_id = f"obs_{Observation._counter}"
+
+    _counter: int = 0  # 类级别计数器，确保每个 observation 有唯一 ID
 
     def to_dict(self) -> dict[str, Any]:
         return {
@@ -57,6 +60,7 @@ class Observation:
             "created_at": self.created_at,
             "file_path": self.file_path,
             "file_fingerprint": self.file_fingerprint,
+            "observation_id": self.observation_id,
         }
 
 
@@ -170,7 +174,7 @@ class WorkingMemory:
 
     def render_text(self) -> str:
         """渲染成给模型看的紧凑文本。"""
-        lines = ["Working memory:"]
+        lines = ["Memory:"]
 
         if self.task_summary:
             lines.append(f"- task: {self.task_summary}")
@@ -222,6 +226,7 @@ class WorkingMemory:
                     created_at=str(obs_data.get("created_at", "")),
                     file_path=str(obs_data.get("file_path", "")),
                     file_fingerprint=str(obs_data.get("file_fingerprint", "")),
+                    observation_id=str(obs_data.get("observation_id", "")),
                 )
             )
         return wm

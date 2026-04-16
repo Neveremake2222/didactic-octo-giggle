@@ -21,6 +21,7 @@ from .context_layers import (
     classify_existing_section,
 )
 from .context_budget import ContextBudget, _tail_clip
+from .memory_config import RELEVANT_MEMORY_LIMIT
 
 if TYPE_CHECKING:
     pass
@@ -28,7 +29,6 @@ if TYPE_CHECKING:
 # Section 到组装顺序的映射
 SECTION_ORDER = ("prefix", "memory", "relevant_memory", "history", "current_request")
 CURRENT_REQUEST_SECTION = "current_request"
-RELEVANT_MEMORY_LIMIT = 3
 
 
 @dataclass

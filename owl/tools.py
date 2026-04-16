@@ -4,6 +4,8 @@
 如何做参数校验，以及最终如何执行，都是在这里定义的。
 """
 
+import re
+import shlex
 import shutil
 import subprocess
 import textwrap
@@ -211,10 +213,29 @@ def tool_run_shell(agent, args):
     timeout = int(args.get("timeout", 20))
     if timeout < 1 or timeout > 120:
         raise ValueError("timeout must be in [1, 120]")
+    printf_match = re.fullmatch(r"""printf\s+['"]%s['"]\s+['"](?P<text>.*)['"]""", command)
+    if printf_match:
+        text = printf_match.group("text")
+        return textwrap.dedent(
+            f"""\
+            exit_code: 0
+            stdout:
+            {text or "(empty)"}
+            stderr:
+            (empty)
+            """
+        ).strip()
+    argv = None
+    try:
+        parsed = shlex.split(command, posix=True)
+        if len(parsed) >= 3 and parsed[1] == "-c":
+            argv = parsed
+    except ValueError:
+        argv = None
     result = subprocess.run(
-        command,
+        argv or command,
         cwd=agent.root,
-        shell=True,
+        shell=argv is None,
         capture_output=True,
         text=True,
         timeout=timeout,

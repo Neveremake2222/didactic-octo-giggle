@@ -48,14 +48,14 @@ from .failure_analyzer import classify_failure
 
 # Phase 2 上下文发现模块
 from .context_discovery import ContextDiscovery
-from .context_invalidation import ContextInjectedTracker, ContextFingerprintIndex
+from .context_invalidation import ContextInjectedTracker
+
+# Phase 3 记忆有效性模块
+from .memory_validity import FileFingerprintTracker, SemanticRecordValidityChecker
+from .stale_observation_guard import StaleObservationGuard
 
 # Phase 5 程序性经验检测
 from .skill_candidate_registry import SkillCandidateRegistry
-
-# Phase 3 记忆有效性模块
-from .memory_validity import FileFingerprintTracker
-from .stale_observation_guard import StaleObservationGuard
 
 SENSITIVE_ENV_NAME_MARKERS = ("API_KEY", "TOKEN", "SECRET", "PASSWORD")
 REDACTED_VALUE = "<redacted>"
@@ -157,7 +157,10 @@ class Owl:
         self.tools = self.build_tools()
         self.prefix_state = self.build_prefix()
         self.prefix = self.prefix_state.text
-        self.context_manager = ContextManager(self)
+
+        # --- 新模块：提前创建 MemoryRetriever 以注入 ContextManager ---
+        self._init_memory_modules()
+
         self.session_path = self.session_store.save(self.session)
         self.current_task_state = None
         self.current_run_dir = None
@@ -172,19 +175,19 @@ class Owl:
         # --- 新模块：ExecutionState / WorkingMemory / SemanticMemory ---
         self.current_execution_state: ExecutionState | None = None
         self.working_memory = WorkingMemory()
-        self.semantic_memory = SemanticMemory()
-        self._memory_writer = MemoryWriter()
-        self._memory_retriever = MemoryRetriever()
-        self._memory_compactor = MemoryCompactor()
+        self.semantic_memory = SemanticMemory(db_path=self.semantic_memory_db_path())
+        self._sync_context_manager_memory_sources()
 
         # --- Phase 2: 上下文发现 + 记忆有效性 ---
         self._context_injected_tracker: ContextInjectedTracker | None = None
         self._context_discovery: ContextDiscovery | None = None
-        self._fingerprint_tracker: ContextFingerprintIndex | None = None
+        # 统一指纹追踪器（Phase 2/3 共用）
+        self._fingerprint_tracker: FileFingerprintTracker | None = None
 
         # --- Phase 3: 记忆有效性 / Stale guard ---
         self._file_fingerprint_tracker: FileFingerprintTracker | None = None
         self._stale_observation_guard: StaleObservationGuard | None = None
+        self._semantic_validity_checker: SemanticRecordValidityChecker | None = None
 
     @classmethod
     def from_session(cls, model_client, workspace, session_store, session_id, **kwargs):
@@ -195,6 +198,190 @@ class Owl:
             session=session_store.load(session_id),
             **kwargs,
         )
+
+    # -------------------------------------------------------------------------
+    # 模块初始化子方法（P2-1: 拆分 God Class）
+    # -------------------------------------------------------------------------
+
+    def _init_memory_modules(self) -> None:
+        """初始化记忆相关模块。
+
+        包含 MemoryWriter、MemoryRetriever、MemoryCompactor，
+        以及带 MemoryRetriever 注入的 ContextManager。
+        """
+        self._memory_writer = MemoryWriter()
+        self._memory_retriever = MemoryRetriever()
+        self._memory_compactor = MemoryCompactor()
+        # Phase 2+: 注入 MemoryRetriever 使 ContextManager 能使用新召回系统
+        self.context_manager = ContextManager(self, memory_retriever=self._memory_retriever)
+
+    def _sync_context_manager_memory_sources(self) -> None:
+        if not hasattr(self, "context_manager") or self.context_manager is None:
+            return
+        self.context_manager._memory_retriever = self._memory_retriever
+        self.context_manager._working_memory = self.working_memory
+        self.context_manager._semantic_memory = self.semantic_memory
+
+    def _init_phase2_modules(self, workspace_root: str) -> None:
+        """初始化 Phase 2 模块（每个 ask 独立实例）。
+
+        包含：ContextInjectedTracker、ContextDiscovery、FileFingerprintTracker。
+        """
+        self._context_injected_tracker = ContextInjectedTracker()
+        self._context_discovery = ContextDiscovery(workspace_root=workspace_root)
+        # 统一指纹追踪器（Phase 2/3 共用，避免重复记录）
+        self._fingerprint_tracker = FileFingerprintTracker()
+
+    def _init_phase3_modules(self) -> None:
+        """初始化 Phase 3 模块（复用 Phase 2 统一指纹追踪器）。
+
+        包含：StaleObservationGuard。
+        """
+        # 优先复用 Phase 2 已创建的 tracker，避免重复记录
+        if self._fingerprint_tracker is None:
+            self._fingerprint_tracker = FileFingerprintTracker()
+        # Phase 3 专属别名（向后兼容）
+        self._file_fingerprint_tracker = self._fingerprint_tracker
+        self._stale_observation_guard = StaleObservationGuard()
+        self._semantic_validity_checker = SemanticRecordValidityChecker(workspace_root=str(self.root))
+        self._memory_retriever.fingerprint_tracker = self._file_fingerprint_tracker
+        self._memory_retriever.validity_checker = self._semantic_validity_checker
+
+    def _finalize_success(
+        self,
+        task_state: TaskState,
+        execution_state: ExecutionState,
+        final: str,
+        run_started_at: float,
+        user_message: str,
+    ) -> str:
+        """ask() 成功路径的收尾逻辑。
+
+        执行：状态切换 → 压缩沉淀 → 程序性经验检测 → trace/report → metrics。
+        """
+        execution_state.transition(PHASE_FINISHED)
+        if self.feature_flags.get("structured_compaction"):
+            compaction_report = self._memory_compactor.compact_and_promote_v2(
+                self.working_memory, self.semantic_memory,
+                task_state.run_id, user_message, str(self.root),
+            )
+            self.emit_trace(task_state, EVENT_PRECOMPACTION_FLUSHED,
+                            {"schema": compaction_report.get("flush", {}).get("run_id", "")})
+            self.emit_trace(task_state, EVENT_CONTEXT_COMPACTED,
+                            compaction_report.get("compaction", {}))
+            self.emit_trace(task_state, EVENT_COMPACTION_PROMOTED,
+                            compaction_report.get("structured", {}))
+        else:
+            compaction_report = self._memory_compactor.compact_and_promote(
+                self.working_memory, self.semantic_memory, str(self.root)
+            )
+
+        self._emit_compaction_trace(task_state, compaction_report)
+
+        # Phase 5: 成功路径也检测程序性经验
+        if self.feature_flags.get("procedure_detection"):
+            self._detect_and_emit_procedure_candidates(task_state)
+
+        self.run_store.write_task_state(task_state)
+        self.emit_trace(
+            task_state,
+            "run_finished",
+            {
+                "status": task_state.status,
+                "stop_reason": task_state.stop_reason,
+                "final_answer": final,
+                "run_duration_ms": int((time.monotonic() - run_started_at) * 1000),
+            },
+        )
+        self.run_store.write_report(task_state, self.redact_artifact(self.build_report(task_state)))
+        self._save_metrics_json(task_state)
+        return final
+
+    def _finalize_stop(
+        self,
+        task_state: TaskState,
+        execution_state: ExecutionState,
+        final: str,
+        run_started_at: float,
+        user_message: str,
+        reason: str,
+    ) -> str:
+        """ask() 停止路径（retry_limit / step_limit）的收尾逻辑。
+
+        执行：标记状态 → 压缩沉淀 → 程序性经验检测 → trace/report → metrics。
+        """
+        if reason == "step_limit":
+            task_state.stop_step_limit(final)
+            execution_state.mark_stop("step_limit_reached")
+        else:
+            task_state.stop_retry_limit(final)
+            execution_state.mark_stop("retry_limit_reached")
+
+        if self.feature_flags.get("structured_compaction"):
+            compaction_report = self._memory_compactor.compact_and_promote_v2(
+                self.working_memory, self.semantic_memory,
+                task_state.run_id, user_message, str(self.root),
+            )
+            self.emit_trace(task_state, EVENT_PRECOMPACTION_FLUSHED,
+                            {"schema": compaction_report.get("flush", {}).get("run_id", "")})
+            self.emit_trace(task_state, EVENT_CONTEXT_COMPACTED,
+                            compaction_report.get("compaction", {}))
+            self.emit_trace(task_state, EVENT_COMPACTION_PROMOTED,
+                            compaction_report.get("structured", {}))
+        else:
+            compaction_report = self._memory_compactor.compact_and_promote(
+                self.working_memory, self.semantic_memory, str(self.root)
+            )
+
+        self._emit_compaction_trace(task_state, compaction_report, phase="compaction_stopped")
+
+        # Phase 5: 检测程序性经验候选
+        if self.feature_flags.get("procedure_detection"):
+            self._detect_and_emit_procedure_candidates(task_state)
+
+        self.record({"role": "assistant", "content": final, "created_at": now()})
+        self.run_store.write_task_state(task_state)
+        self.emit_trace(
+            task_state,
+            "run_finished",
+            {
+                "status": task_state.status,
+                "stop_reason": task_state.stop_reason,
+                "final_answer": final,
+                "run_duration_ms": int((time.monotonic() - run_started_at) * 1000),
+            },
+        )
+        self.run_store.write_report(task_state, self.redact_artifact(self.build_report(task_state)))
+        self._save_metrics_json(task_state)
+        return final
+
+    def _emit_compaction_trace(self, task_state: TaskState, compaction_report: dict, phase: str = "compaction") -> None:
+        """发出压缩沉淀 trace。"""
+        self.emit_trace(
+            task_state,
+            "memory_written",
+            {
+                "phase": phase,
+                "memory_written_working": False,
+                "memory_promoted_semantic": True,
+                "compaction": compaction_report.get("compaction", {}),
+                "promotion": compaction_report.get("promotion", {}),
+            },
+        )
+
+    def _detect_and_emit_procedure_candidates(self, task_state: TaskState) -> None:
+        """检测并发出程序性经验候选 trace。"""
+        if not hasattr(self, "_skill_registry") or self._skill_registry is None:
+            self._skill_registry = SkillCandidateRegistry()
+        candidates = self._memory_compactor.detect_procedure_candidates(
+            self.working_memory, task_state.run_id, self._skill_registry
+        )
+        if candidates:
+            self.emit_trace(
+                task_state,
+                EVENT_PROCEDURE_CANDIDATES_DETECTED,
+                {"count": len(candidates), "types": [c.pattern_type for c in candidates]},
+            )
 
     @staticmethod
     def remember(bucket, item, limit):
@@ -243,7 +430,7 @@ class Owl:
         # 它是谁、工具怎么调用、当前仓库是什么状态，都写在这里。
         text = textwrap.dedent(
             f"""\
-            You are owl, a small local coding agent working inside a local repository.
+            You are Mini-Coding-Agent (owl), a small local coding agent working inside a local repository.
 
             Rules:
             - Use tools instead of guessing about the workspace.
@@ -318,6 +505,9 @@ class Owl:
         return dict(self._last_prefix_refresh)
 
     def memory_text(self):
+        if hasattr(self, "working_memory") and isinstance(self.working_memory, WorkingMemory):
+            if not self.working_memory.is_empty():
+                return self.working_memory.render_text()
         return self.memory.render_memory_text()
 
     def history_text(self):
@@ -447,6 +637,46 @@ class Owl:
         metadata.update(self.secret_env_summary())
         return prompt, metadata
 
+    def semantic_memory_db_path(self):
+        return str(self.root / ".owl" / "memory" / "semantic-memory.db")
+
+    def normalize_memory_path(self, raw_path):
+        return self.memory.canonical_path(raw_path)
+
+    def _normalized_tool_args(self, args):
+        normalized = dict(args or {})
+        path = normalized.get("path")
+        if not path:
+            return normalized
+        normalized["path"] = self.normalize_memory_path(path)
+        try:
+            normalized["absolute_path"] = str(self.path(path))
+        except Exception:
+            pass
+        return normalized
+
+    def _record_tool_file_fingerprint(self, name, args):
+        if not self._file_fingerprint_tracker:
+            return ""
+        path = str(args.get("path", "")).strip()
+        absolute_path = str(args.get("absolute_path", "")).strip()
+        if not path or not absolute_path or name not in {"read_file", "write_file", "patch_file"}:
+            return ""
+        try:
+            content = Path(absolute_path).read_text(encoding="utf-8")
+        except (OSError, UnicodeDecodeError):
+            return ""
+        return self._file_fingerprint_tracker.record(absolute_path, content, alias=path)
+
+    def _invalidate_semantic_for_modified_file(self, name, args):
+        if name not in {"write_file", "patch_file"}:
+            return 0
+        path = str(args.get("path", "")).strip()
+        if not path:
+            return 0
+        new_version = self._record_tool_file_fingerprint(name, args)
+        return self.semantic_memory.invalidate_by_file(path, new_version=new_version or None)
+
     def emit_trace(self, task_state, event, payload=None):
         payload = self.redact_artifact(payload or {})
         payload["event"] = event
@@ -545,15 +775,17 @@ class Owl:
         self.working_memory = WorkingMemory()
         self.working_memory.set_task_summary(user_message)
 
+        # Phase 2+: 注入最新 memory 实例到 ContextManager
+        self.context_manager._working_memory = self.working_memory
+        self.context_manager._semantic_memory = self.semantic_memory
+
         # Phase 2: 初始化上下文发现模块（每个 ask 独立实例）
         if self.feature_flags.get("context_discovery"):
-            self._context_injected_tracker = ContextInjectedTracker()
-            self._context_discovery = ContextDiscovery(workspace_root=str(self.root))
+            self._init_phase2_modules(str(self.root))
 
-        # Phase 3: 初始化 stale guard
+        # Phase 3: 初始化 stale guard（复用 Phase 2 的统一指纹追踪器）
         if self.feature_flags.get("stale_guard"):
-            self._file_fingerprint_tracker = FileFingerprintTracker()
-            self._stale_observation_guard = StaleObservationGuard()
+            self._init_phase3_modules()
 
         # 新模块：发出初始状态转换 trace
         self.emit_trace(
@@ -707,9 +939,25 @@ class Owl:
                 )
 
                 # 新模块：更新 working_memory 和 semantic_memory
-                write_decision = self._memory_writer.should_write(name, args, result)
+                memory_args = self._normalized_tool_args(args)
+                fingerprint = ""
+                if name == "read_file":
+                    fingerprint = self._record_tool_file_fingerprint(name, memory_args)
+                write_decision = self._memory_writer.should_write(name, memory_args, result)
                 self._memory_writer.write_working(self.working_memory, write_decision)
-                self._memory_writer.write_semantic(self.semantic_memory, write_decision)
+                invalidated_count = self._invalidate_semantic_for_modified_file(name, memory_args)
+                if fingerprint:
+                    self.emit_trace(
+                        task_state,
+                        "file_fingerprint_recorded",
+                        {"tool": name, "path": memory_args.get("path", ""), "fingerprint": fingerprint},
+                    )
+                if invalidated_count:
+                    self.emit_trace(
+                        task_state,
+                        "semantic_invalidated_by_file",
+                        {"tool": name, "path": memory_args.get("path", ""), "invalidated_count": invalidated_count},
+                    )
                 self.emit_trace(
                     task_state,
                     "memory_written",
@@ -717,6 +965,10 @@ class Owl:
                         "target": write_decision.get("target", ""),
                         "category": write_decision.get("category", ""),
                         "tool": name,
+                        "memory_written_working": write_decision.get("target", "") == "working",
+                        "memory_promoted_semantic": False,
+                        "fingerprint_recorded": bool(fingerprint),
+                        "semantic_invalidated": invalidated_count,
                     },
                 )
 
@@ -732,6 +984,11 @@ class Owl:
                         self.emit_trace(
                             task_state,
                             EVENT_MEMORY_SKIPPED_STALE,
+                            {"removed": removed, "stale_sources": [s.file_path for s in stale]},
+                        )
+                        self.emit_trace(
+                            task_state,
+                            "stale_observations_removed",
                             {"removed": removed, "stale_sources": [s.file_path for s in stale]},
                         )
 
@@ -759,131 +1016,20 @@ class Owl:
             final = (payload or raw).strip()
             self.record({"role": "assistant", "content": final, "created_at": now()})
             task_state.finish_success(final)
-
-            # 新模块：运行结束 → compact and promote
-            execution_state.transition(PHASE_FINISHED)
-            if self.feature_flags.get("structured_compaction"):
-                compaction_report = self._memory_compactor.compact_and_promote_v2(
-                    self.working_memory, self.semantic_memory,
-                    task_state.run_id, user_message, str(self.root),
-                )
-                self.emit_trace(task_state, EVENT_PRECOMPACTION_FLUSHED,
-                                {"schema": compaction_report.get("flush", {}).get("run_id", "")})
-                self.emit_trace(task_state, EVENT_CONTEXT_COMPACTED,
-                                compaction_report.get("compaction", {}))
-                self.emit_trace(task_state, EVENT_COMPACTION_PROMOTED,
-                                compaction_report.get("structured", {}))
-            else:
-                compaction_report = self._memory_compactor.compact_and_promote(
-                    self.working_memory, self.semantic_memory, str(self.root)
-                )
-            self.emit_trace(
-                task_state,
-                "memory_written",
-                {
-                    "phase": "compaction",
-                    "compaction": compaction_report.get("compaction", {}),
-                    "promotion": compaction_report.get("promotion", {}),
-                },
+            return self._finalize_success(
+                task_state, execution_state, final, run_started_at, user_message
             )
-
-            # Phase 5: 成功路径也检测程序性经验
-            if self.feature_flags.get("procedure_detection"):
-                if not hasattr(self, "_skill_registry") or self._skill_registry is None:
-                    self._skill_registry = SkillCandidateRegistry()
-                candidates = self._memory_compactor.detect_procedure_candidates(
-                    self.working_memory, task_state.run_id, self._skill_registry
-                )
-                if candidates:
-                    self.emit_trace(
-                        task_state,
-                        EVENT_PROCEDURE_CANDIDATES_DETECTED,
-                        {"count": len(candidates), "types": [c.pattern_type for c in candidates]},
-                    )
-
-            self.run_store.write_task_state(task_state)
-            self.emit_trace(
-                task_state,
-                "run_finished",
-                {
-                    "status": task_state.status,
-                    "stop_reason": task_state.stop_reason,
-                    "final_answer": final,
-                    "run_duration_ms": int((time.monotonic() - run_started_at) * 1000),
-                },
-            )
-            self.run_store.write_report(task_state, self.redact_artifact(self.build_report(task_state)))
-            self._save_metrics_json(task_state)
-            return final
 
         if attempts >= max_attempts and tool_steps < self.max_steps:
+            reason = "retry_limit"
             final = "Stopped after too many malformed model responses without a valid tool call or final answer."
-            task_state.stop_retry_limit(final)
-            execution_state.mark_stop("retry_limit_reached")
         else:
+            reason = "step_limit"
             final = "Stopped after reaching the step limit without a final answer."
-            task_state.stop_step_limit(final)
-            execution_state.mark_stop("step_limit_reached")
 
-        # 新模块：停止时也进行 compact and promote
-        if self.feature_flags.get("structured_compaction"):
-            compaction_report = self._memory_compactor.compact_and_promote_v2(
-                self.working_memory, self.semantic_memory,
-                task_state.run_id, user_message, str(self.root),
-            )
-            self.emit_trace(task_state, EVENT_PRECOMPACTION_FLUSHED,
-                            {"schema": compaction_report.get("flush", {}).get("run_id", "")})
-            self.emit_trace(task_state, EVENT_CONTEXT_COMPACTED,
-                            compaction_report.get("compaction", {}))
-            self.emit_trace(task_state, EVENT_COMPACTION_PROMOTED,
-                            compaction_report.get("structured", {}))
-        else:
-            compaction_report = self._memory_compactor.compact_and_promote(
-                self.working_memory, self.semantic_memory, str(self.root)
-            )
-        self.emit_trace(
-            task_state,
-            "memory_written",
-            {
-                "phase": "compaction_stopped",
-                "compaction": compaction_report.get("compaction", {}),
-                "promotion": compaction_report.get("promotion", {}),
-            },
+        return self._finalize_stop(
+            task_state, execution_state, final, run_started_at, user_message, reason
         )
-
-        # Phase 5: 检测程序性经验候选
-        if self.feature_flags.get("procedure_detection"):
-            if not hasattr(self, "_skill_registry") or self._skill_registry is None:
-                self._skill_registry = SkillCandidateRegistry()
-            candidates = self._memory_compactor.detect_procedure_candidates(
-                self.working_memory, task_state.run_id, self._skill_registry
-            )
-            if candidates:
-                self.emit_trace(
-                    task_state,
-                    EVENT_PROCEDURE_CANDIDATES_DETECTED,
-                    {
-                        "count": len(candidates),
-                        "types": [c.pattern_type for c in candidates],
-                        "stages": [c.stage for c in candidates],
-                    },
-                )
-
-        self.record({"role": "assistant", "content": final, "created_at": now()})
-        self.run_store.write_task_state(task_state)
-        self.emit_trace(
-            task_state,
-            "run_finished",
-            {
-                "status": task_state.status,
-                "stop_reason": task_state.stop_reason,
-                "final_answer": final,
-                "run_duration_ms": int((time.monotonic() - run_started_at) * 1000),
-            },
-        )
-        self.run_store.write_report(task_state, self.redact_artifact(self.build_report(task_state)))
-        self._save_metrics_json(task_state)
-        return final
 
     def _save_metrics_json(self, task_state):
         """ask() 结束后自动保存 metrics.json。"""
@@ -896,8 +1042,9 @@ class Owl:
             if failure_cat:
                 metrics["failure_category"] = failure_cat
             self.run_store.write_metrics(task_state, metrics)
-        except Exception:
-            pass  # metrics.json 是增强产物，不应影响主流程
+        except Exception as exc:
+            # metrics.json 是增强产物，不应阻断主流程，但需要可观测。
+            self.emit_trace(task_state, "metrics_save_failed", {"error": repr(exc)})
 
     def run_tool(self, name, args):
         """执行一次工具调用，并在执行前后套上完整护栏。
@@ -1014,7 +1161,9 @@ class Owl:
             report["working_memory"] = self.working_memory.to_dict()
         if hasattr(self, "semantic_memory"):
             report["semantic_memory_summary"] = {
+                "db_path": getattr(self.semantic_memory, "_db_path", ""),
                 "record_count": self.semantic_memory.count(),
+                "total_record_count": getattr(self.semantic_memory, "count_total", lambda: self.semantic_memory.count())(),
             }
         return report
 

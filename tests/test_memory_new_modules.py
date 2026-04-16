@@ -69,6 +69,7 @@ class TestWorkingMemory:
         wm.set_task_summary("fix bug")
         wm.add_observation("read_file", "file content")
         text = wm.render_text()
+        assert text.startswith("Memory:")
         assert "fix bug" in text
         assert "read_file" in text
 
@@ -278,6 +279,18 @@ class TestMemoryRetriever:
 
         score_zero = MemoryRetriever._compute_relevance("database layer", "fix authentication bug")
         assert score_zero == 0.0
+
+    def test_recall_result_to_dict_preserves_metadata(self):
+        result = RecallResult(
+            source="semantic",
+            content="auth module",
+            repo_path="src/auth.py",
+            relevance_score=0.9,
+            metadata={"record_id": "rec-1", "kind": "file_summary"},
+        )
+        data = result.to_dict()
+        assert data["metadata"]["record_id"] == "rec-1"
+        assert data["metadata"]["kind"] == "file_summary"
 
 
 # === MemoryCompactor ===

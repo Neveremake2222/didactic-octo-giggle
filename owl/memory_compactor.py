@@ -12,6 +12,7 @@ compactor 是 working → semantic 的唯一桥梁。
 
 from __future__ import annotations
 
+from pathlib import Path
 from typing import Any
 
 from .semantic_memory import SemanticMemory, SemanticRecord
@@ -22,14 +23,10 @@ from .compaction_schema import (
     schema_to_semantic_records,
 )
 from .procedure_candidate_detector import ProcedureCandidateDetector
+from .memory_utils import extract_path_from_observation, file_fingerprint
 
 
-# 允许从 working memory 沉淀到 semantic memory 的条件：
-# 1. 观察次数 >= 2（同一文件被多次读取，说明信息重要）
-# 2. 文件摘要存在且有效
-# 3. 不是错误信息
-
-MIN_OBSERVATIONS_FOR_PROMOTION = 2
+from .memory_config import MIN_OBSERVATIONS_FOR_PROMOTION
 
 
 class MemoryCompactor:
@@ -137,12 +134,19 @@ class MemoryCompactor:
                 skipped_count += 1
                 continue
 
+            absolute_path = str((Path(workspace_root) / path).resolve()) if workspace_root else path
+            current_fp = file_fingerprint(absolute_path)
+
             sm.put(SemanticRecord(
                 record_id=record_id,
                 category="file_summary",
                 content=summary,
                 repo_path=path,
+                file_path=path,
                 tags=["file_summary", path],
+                freshness_hash=current_fp,
+                file_version=current_fp,
+                importance_score=1.0,
             ))
             promoted_count += 1
             promoted_items.append(path)
@@ -174,24 +178,8 @@ class MemoryCompactor:
 
     @staticmethod
     def _extract_path_from_observation(obs: Any) -> str:
-        """从观察记录中提取文件路径。"""
-        summary = obs.summary if hasattr(obs, "summary") else str(obs)
-
-        # 格式通常是 "read path/to/file: summary"
-        if ":" in summary and summary.startswith("read "):
-            parts = summary.split(":", 1)
-            path = parts[0].replace("read ", "").strip()
-            if path:
-                return path
-
-        # 尝试从 summary 本身提取路径
-        for word in summary.split():
-            if "/" in word or word.endswith(".py") or word.endswith(".md"):
-                clean = word.strip("[]():,.")
-                if clean:
-                    return clean
-
-        return ""
+        """从观察记录中提取文件路径（委托到 memory_utils）。"""
+        return extract_path_from_observation(obs)
 
 
 # ---------------------------------------------------------------------------

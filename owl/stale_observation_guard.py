@@ -1,6 +1,6 @@
 """Working Memory 陈旧观察守护。
 
-在工具执行后，检查 working memory 中的 observations ��否基于过期文件内容。
+在工具执行后，检查 working memory 中的 observations 是否基于过期文件内容。
 如果文件内容已变化，标记并移除对应的 observation。
 
 工作流程：
@@ -22,6 +22,8 @@ from dataclasses import dataclass
 from typing import Any
 
 from .memory_validity import FileFingerprintTracker
+from .memory_utils import extract_path_from_observation
+from .working_memory import WorkingMemory
 
 
 # ---------------------------------------------------------------------------
@@ -33,13 +35,13 @@ from .memory_validity import FileFingerprintTracker
 class StaleObservation:
     """一条被判定为陈旧的观察记录。"""
 
-    observation_index: int
+    observation_id: str
     file_path: str
     reason: str
 
     def to_dict(self) -> dict[str, Any]:
         return {
-            "observation_index": self.observation_index,
+            "observation_id": self.observation_id,
             "file_path": self.file_path,
             "reason": self.reason,
         }
@@ -61,7 +63,7 @@ class StaleObservationGuard:
 
     def check_working_memory(
         self,
-        wm: Any,
+        wm: WorkingMemory,
         tracker: FileFingerprintTracker,
     ) -> list[StaleObservation]:
         """检查 working memory 中的 observations 是否基于过期文件内容。
@@ -78,7 +80,7 @@ class StaleObservationGuard:
         stale: list[StaleObservation] = []
 
         observations = getattr(wm, "recent_observations", [])
-        for i, obs in enumerate(observations):
+        for obs in observations:
             file_path = getattr(obs, "file_path", "")
             if not file_path:
                 # 尝试从 summary 提取路径
@@ -97,17 +99,17 @@ class StaleObservationGuard:
             is_stale, current_fp = tracker.check_from_file(file_path)
             if is_stale:
                 stale.append(StaleObservation(
-                    observation_index=i,
+                    observation_id=getattr(obs, "observation_id", ""),
                     file_path=file_path,
                     reason=f"File {file_path} has changed (fingerprint mismatch).",
                 ))
 
         return stale
 
-    def remove_stale(self, wm: Any, stale_obs: list[StaleObservation]) -> int:
+    def remove_stale(self, wm: WorkingMemory, stale_obs: list[StaleObservation]) -> int:
         """从 working memory 中移除陈旧的 observations。
 
-        按索引从后往前移除，避免索引偏移问题。
+        通过 observation_id 过滤，避免索引偏移导致的竞态条件。
 
         Returns:
             移除数量。
@@ -115,18 +117,14 @@ class StaleObservationGuard:
         if not stale_obs:
             return 0
 
-        # 按索引降序排列（从后往前删除）
-        indices_to_remove = sorted(
-            set(so.observation_index for so in stale_obs),
-            reverse=True,
-        )
-
+        stale_ids = {so.observation_id for so in stale_obs}
         observations = getattr(wm, "recent_observations", [])
-        for idx in indices_to_remove:
-            if 0 <= idx < len(observations):
-                observations.pop(idx)
-
-        return len(indices_to_remove)
+        original_count = len(observations)
+        wm.recent_observations = [
+            obs for obs in observations
+            if getattr(obs, "observation_id", "") not in stale_ids
+        ]
+        return original_count - len(wm.recent_observations)
 
     # -------------------------------------------------------------------------
     # 内部工具
@@ -134,17 +132,5 @@ class StaleObservationGuard:
 
     @staticmethod
     def _extract_path_from_summary(summary: str) -> str:
-        """从观察摘要中提取文件路径。"""
-        # 格式: "read path/to/file: summary"
-        if summary.startswith("read "):
-            parts = summary.split(":", 1)
-            path = parts[0].replace("read ", "").strip()
-            if path:
-                return path
-        # 尝试找含 / 或文件后缀的词
-        for word in summary.split():
-            if "/" in word or word.endswith((".py", ".md", ".txt", ".json", ".yaml")):
-                clean = word.strip("[]():,.")
-                if clean:
-                    return clean
-        return ""
+        """从观察摘要中提取文件路径（委托到 memory_utils）。"""
+        return extract_path_from_observation(summary)

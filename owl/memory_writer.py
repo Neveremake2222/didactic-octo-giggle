@@ -17,6 +17,7 @@ from typing import Any
 
 from .semantic_memory import SemanticMemory, SemanticRecord
 from .working_memory import WorkingMemory
+from .memory_utils import summarize_result, file_fingerprint
 
 
 # 写入目标
@@ -82,6 +83,7 @@ class MemoryWriter:
                     "tool_name": tool_name,
                     "args": args,
                     "path": path,
+                    "absolute_path": args.get("absolute_path", ""),
                     "promote_to_semantic": True,
                 }
 
@@ -94,7 +96,9 @@ class MemoryWriter:
                 "tool_name": tool_name,
                 "args": args,
                 "path": path,
+                "absolute_path": args.get("absolute_path", ""),
                 "promote_to_semantic": False,
+                "invalidate_paths": [path],
             }
 
         # shell 执行写入 working memory（作为观察）
@@ -127,17 +131,18 @@ class MemoryWriter:
         content = decision.get("content", "")
         tool_name = decision.get("tool_name", "")
         path = decision.get("path", "")
+        absolute_path = decision.get("absolute_path", "")
 
         # Phase 2: 计算文件指纹
-        file_fingerprint = ""
+        file_fingerprint_val = ""
         if path and category in ("file_summary", "file_modified"):
-            file_fingerprint = _file_fingerprint(path)
+            file_fingerprint_val = file_fingerprint(absolute_path or path)
 
         if category == "observation":
             wm.add_observation(tool_name, content)
         elif category == "file_summary":
             wm.add_observation(tool_name, f"read {path}: {content}",
-                               file_path=path, file_fingerprint=file_fingerprint)
+                               file_path=path, file_fingerprint=file_fingerprint_val)
             if path:
                 wm.add_candidate(path)
         elif category == "file_modified":
@@ -149,6 +154,7 @@ class MemoryWriter:
         category = decision.get("category", "")
         content = decision.get("content", "")
         path = decision.get("path", "")
+        absolute_path = decision.get("absolute_path", "")
 
         # 文件被修改时，即使 content 为空，也要删除旧摘要
         if category == "file_modified" and path:
@@ -165,12 +171,13 @@ class MemoryWriter:
 
         if category == "file_summary" and decision.get("promote_to_semantic"):
             # Phase 2: 填充 freshness_hash 和 file_version
-            fp = _file_fingerprint(path)
+            fp = file_fingerprint(absolute_path or path)
             sm.put(SemanticRecord(
                 record_id=record_id,
                 category="file_summary",
                 content=content,
                 repo_path=path,
+                file_path=path,
                 tags=["file_summary", path],
                 source_run_id=decision.get("args", {}).get("run_id", ""),
                 freshness_hash=fp,
@@ -179,22 +186,5 @@ class MemoryWriter:
             ))
 
     def _summarize_result(self, result: str, limit: int = 180) -> str:
-        """对工具结果生成简短摘要。"""
-        lines = [line.strip() for line in str(result).splitlines() if line.strip()]
-        if not lines:
-            return "(empty)"
-        if lines[0].startswith("# "):
-            lines = lines[1:]
-        if not lines:
-            return "(empty)"
-        summary = " | ".join(lines[:3])
-        return summary[:limit]
-
-
-def _file_fingerprint(path: str) -> str:
-    """计算文件内容的 SHA-256 fingerprint。文件不存在时返回空字符串。"""
-    try:
-        content = Path(path).read_text(encoding="utf-8")
-        return hashlib.sha256(content.encode("utf-8")).hexdigest()
-    except (OSError, UnicodeDecodeError):
-        return ""
+        """对工具结果生成简短摘要（委托到 memory_utils）。"""
+        return summarize_result(result, limit)

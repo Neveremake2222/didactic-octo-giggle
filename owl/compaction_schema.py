@@ -17,6 +17,9 @@ from dataclasses import dataclass, field
 from datetime import datetime, timezone
 from typing import Any
 
+from .memory_utils import extract_path_from_text, make_record_id
+from .working_memory import WorkingMemory
+
 
 def _now_iso() -> str:
     return datetime.now(timezone.utc).isoformat()
@@ -121,7 +124,7 @@ class CompactionSchema:
 # ---------------------------------------------------------------------------
 
 def build_schema_from_working_memory(
-    wm: Any,
+    wm: WorkingMemory,
     run_id: str,
     original_request: str,
 ) -> CompactionSchema:
@@ -249,23 +252,10 @@ def schema_to_semantic_records(
 # ---------------------------------------------------------------------------
 
 def _extract_path_from_summary(summary: str) -> str:
-    """从观察摘要中提取文件路径。"""
-    # 格式: "read path/to/file: summary"
-    if summary.startswith("read "):
-        parts = summary.split(":", 1)
-        path = parts[0].replace("read ", "").strip()
-        if path:
-            return path
-    # 尝试找含 / 或文件后缀的词
-    for word in summary.split():
-        if "/" in word or word.endswith((".py", ".md", ".txt", ".json", ".yaml")):
-            clean = word.strip("[]():,.")
-            if clean:
-                return clean
-    return ""
+    """从观察摘要中提取文件路径（委托到 memory_utils）。"""
+    return extract_path_from_text(summary)
 
 
 def _make_record_id(category: str, key: str) -> str:
-    """生成稳定的 record_id。"""
-    raw = f"{category}:{key}"
-    return hashlib.sha256(raw.encode("utf-8")).hexdigest()[:16]
+    """生成稳定的 record_id（委托到 memory_utils）。"""
+    return make_record_id(category, key, length=16)
