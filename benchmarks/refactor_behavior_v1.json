@@ -1,0 +1,174 @@
+{
+  "schema_version": 2,
+  "description": "Behavioral benchmark for context handling and multi-step workflow validation.",
+  "tasks": [
+    {
+      "id": "context_latest_override",
+      "prompt": "In config.yaml, change the timeout value to 60. The old constraint saying timeout should stay at 30 is outdated; use 60.",
+      "fixture_repo": "tests/fixtures/bench_v2_context_noise",
+      "allowed_tools": ["read_file", "patch_file"],
+      "step_budget": 4,
+      "expected_artifact": "config.yaml has timeout set to 60",
+      "artifact_file": "config.yaml",
+      "verifier": "python -c \"from pathlib import Path; text = Path('config.yaml').read_text(encoding='utf-8'); assert 'timeout: 60' in text, f'timeout not 60: {text}'\"",
+      "category": "context",
+      "tags": ["context", "override"],
+      "session_setup": {
+        "memory_notes": [
+          {
+            "text": "timeout must stay at 30 for all config files",
+            "tags": ["constraint"],
+            "created_at": "2026-04-01T10:00:00+00:00"
+          }
+        ]
+      }
+    },
+    {
+      "id": "context_irrelevant_memory_filter",
+      "prompt": "Find the deployment key in credentials.txt and update api_config.txt to use that key as the api_key value.",
+      "fixture_repo": "tests/fixtures/bench_v2_context_noise",
+      "allowed_tools": ["read_file", "patch_file"],
+      "step_budget": 6,
+      "expected_artifact": "api_config.txt has the deployment key as api_key",
+      "artifact_file": "api_config.txt",
+      "verifier": "python -c \"from pathlib import Path; text = Path('api_config.txt').read_text(encoding='utf-8'); assert 'AKIA-TEST-7749' in text, f'key not found: {text}'\"",
+      "category": "context",
+      "tags": ["context", "memory-filter"],
+      "session_setup": {
+        "memory_notes": [
+          {
+            "text": "deployment key is in credentials.txt",
+            "tags": ["relevant", "credentials"],
+            "created_at": "2026-04-10T10:00:00+00:00"
+          },
+          {
+            "text": "the team mascot is blue and the logo is a dragon",
+            "tags": ["unrelated"],
+            "created_at": "2026-04-10T09:00:00+00:00"
+          },
+          {
+            "text": "lunch is scheduled for noon in room 3B",
+            "tags": ["unrelated"],
+            "created_at": "2026-04-10T09:01:00+00:00"
+          },
+          {
+            "text": "the parking lot is closed on weekends",
+            "tags": ["unrelated"],
+            "created_at": "2026-04-10T09:02:00+00:00"
+          },
+          {
+            "text": "office thermostat is set to 22 degrees",
+            "tags": ["unrelated"],
+            "created_at": "2026-04-10T09:03:00+00:00"
+          },
+          {
+            "text": "team standup is at 9:15 every morning",
+            "tags": ["unrelated"],
+            "created_at": "2026-04-10T09:04:00+00:00"
+          },
+          {
+            "text": "the coffee machine on floor 2 is broken",
+            "tags": ["unrelated"],
+            "created_at": "2026-04-10T09:05:00+00:00"
+          },
+          {
+            "text": "budget review is scheduled for next Thursday",
+            "tags": ["unrelated"],
+            "created_at": "2026-04-10T09:06:00+00:00"
+          },
+          {
+            "text": "the new hires start on Monday week 3",
+            "tags": ["unrelated"],
+            "created_at": "2026-04-10T09:07:00+00:00"
+          }
+        ]
+      }
+    },
+    {
+      "id": "context_long_history_keep_target",
+      "prompt": "Update report.txt: set ref to launch-code-7749 and status to confirmed.",
+      "fixture_repo": "tests/fixtures/bench_v2_context_noise",
+      "allowed_tools": ["read_file", "search", "patch_file"],
+      "step_budget": 8,
+      "expected_artifact": "report.txt references launch-code-7749",
+      "artifact_file": "report.txt",
+      "verifier": "python -c \"from pathlib import Path; text = Path('report.txt').read_text(encoding='utf-8'); assert 'launch-code-7749' in text, f'code not found: {text}'; assert 'confirmed' in text, f'status not confirmed: {text}'\"",
+      "category": "context",
+      "tags": ["context", "long-history"],
+      "session_setup": {
+        "history": [
+          {"role": "user", "content": "Check the project status and tell me about it.", "created_at": "2026-04-10T08:00:00+00:00"},
+          {"role": "assistant", "content": "The project status is nominal. All systems green.", "created_at": "2026-04-10T08:01:00+00:00"},
+          {"role": "user", "content": "What about the deployment pipeline?", "created_at": "2026-04-10T08:02:00+00:00"},
+          {"role": "assistant", "content": "The deployment pipeline is running smoothly. No issues.", "created_at": "2026-04-10T08:03:00+00:00"},
+          {"role": "user", "content": "Can you verify the launch code in target.txt?", "created_at": "2026-04-10T08:04:00+00:00"},
+          {"role": "assistant", "content": "I checked target.txt. The launch code is launch-code-7749 and its status is active.", "created_at": "2026-04-10T08:05:00+00:00"},
+          {"role": "user", "content": "What is the current API configuration?", "created_at": "2026-04-10T08:06:00+00:00"},
+          {"role": "assistant", "content": "The API is configured with a placeholder key and 30s timeout.", "created_at": "2026-04-10T08:07:00+00:00"},
+          {"role": "user", "content": "Check the credentials file.", "created_at": "2026-04-10T08:08:00+00:00"},
+          {"role": "assistant", "content": "Credentials file shows deployment-key: AKIA-TEST-7749 in us-east-1.", "created_at": "2026-04-10T08:09:00+00:00"}
+        ]
+      }
+    },
+    {
+      "id": "context_multi_file_disambiguation",
+      "prompt": "Only modify config/service-a.yaml to set version to '2.0'. Do not modify service-b.yaml or service-c.yaml.",
+      "fixture_repo": "tests/fixtures/bench_v2_multistep_edit",
+      "allowed_tools": ["list_files", "read_file", "patch_file"],
+      "step_budget": 6,
+      "expected_artifact": "service-a.yaml has version 2.0, others unchanged",
+      "artifact_file": "config/service-a.yaml",
+      "verifier": "python -c \"\nfrom pathlib import Path\na = Path('config/service-a.yaml').read_text(encoding='utf-8')\nb = Path('config/service-b.yaml').read_text(encoding='utf-8')\nc = Path('config/service-c.yaml').read_text(encoding='utf-8')\nassert 'version: \\\"2.0\\\"' in a or 'version: 2.0' in a or \\\"version: '2.0'\\\" in a, f'service-a not updated: {a}'\nassert 'version: \\\"1.0\\\"' in b or 'version: 1.0' in b, f'service-b was modified: {b}'\nassert 'version: \\\"1.0\\\"' in c or 'version: 1.0' in c, f'service-c was modified: {c}'\n\"",
+      "category": "context",
+      "tags": ["context", "disambiguation"]
+    },
+    {
+      "id": "workflow_search_read_patch",
+      "prompt": "Search for 'PLACEHOLDER_VERSION' across the repo, read the file containing it, and replace it with '3.1.0'.",
+      "fixture_repo": "tests/fixtures/bench_v2_multistep_edit",
+      "allowed_tools": ["search", "read_file", "patch_file"],
+      "step_budget": 8,
+      "expected_artifact": "version.txt has version 3.1.0",
+      "artifact_file": "version.txt",
+      "verifier": "python -c \"from pathlib import Path; text = Path('version.txt').read_text(encoding='utf-8'); assert '3.1.0' in text and 'PLACEHOLDER_VERSION' not in text, f'not updated: {text}'\"",
+      "category": "workflow",
+      "tags": ["workflow", "multi-step"]
+    },
+    {
+      "id": "workflow_verify_before_done",
+      "prompt": "Replace 'old-label' with 'new-label' in labels.txt, then read the file back to confirm the change before finishing.",
+      "fixture_repo": "tests/fixtures/bench_v2_multistep_edit",
+      "allowed_tools": ["read_file", "patch_file"],
+      "step_budget": 8,
+      "expected_artifact": "labels.txt contains new-label",
+      "artifact_file": "labels.txt",
+      "verifier": "python -c \"from pathlib import Path; text = Path('labels.txt').read_text(encoding='utf-8'); assert 'new-label' in text and 'old-label' not in text, f'label not updated: {text}'\"",
+      "category": "workflow",
+      "tags": ["workflow", "verification"]
+    },
+    {
+      "id": "workflow_avoid_duplicate_read",
+      "prompt": "Read settings.txt to find the current mode, then change it from 'debug' to 'production'.",
+      "fixture_repo": "tests/fixtures/bench_v2_multistep_edit",
+      "allowed_tools": ["read_file", "patch_file"],
+      "step_budget": 6,
+      "expected_artifact": "settings.txt has mode production",
+      "artifact_file": "settings.txt",
+      "verifier": "python -c \"from pathlib import Path; text = Path('settings.txt').read_text(encoding='utf-8'); assert 'production' in text and 'debug' not in text, f'mode not updated: {text}'\"",
+      "category": "workflow",
+      "tags": ["workflow", "dedup"]
+    },
+    {
+      "id": "workflow_partial_signal_recovery",
+      "prompt": "Search for 'ERROR_CODE' across the repo. The definitions might be split across files. Find the file with ERROR_VERSION and update it from 1 to 2.",
+      "fixture_repo": "tests/fixtures/bench_v2_multistep_edit",
+      "allowed_tools": ["search", "read_file", "patch_file"],
+      "step_budget": 10,
+      "expected_artifact": "error_codes_full.py has ERROR_VERSION = 2",
+      "artifact_file": "error_codes_full.py",
+      "verifier": "python -c \"from pathlib import Path; text = Path('error_codes_full.py').read_text(encoding='utf-8'); assert 'ERROR_VERSION = 2' in text, f'version not updated: {text}'\"",
+      "category": "workflow",
+      "tags": ["workflow", "recovery"]
+    }
+  ]
+}

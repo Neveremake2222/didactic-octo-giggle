@@ -1,0 +1,3 @@
+timeout: 30
+mode: default
+log_level: info

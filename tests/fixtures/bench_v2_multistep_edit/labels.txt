@@ -1,0 +1,3 @@
+label: old-label
+color: blue
+priority: normal

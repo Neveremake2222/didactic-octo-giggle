@@ -1,0 +1,3 @@
+name: service-c
+version: "1.0"
+port: 8082

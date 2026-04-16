@@ -1,0 +1,2 @@
+version: PLACEHOLDER_VERSION
+build: 2024-01-01

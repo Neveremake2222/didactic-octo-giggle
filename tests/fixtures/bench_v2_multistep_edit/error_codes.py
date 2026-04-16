@@ -1,0 +1,2 @@
+ERROR_CODE_A = 1
+ERROR_CODE_B = 1

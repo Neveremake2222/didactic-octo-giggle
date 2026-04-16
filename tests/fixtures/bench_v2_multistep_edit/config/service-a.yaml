@@ -1,0 +1,3 @@
+name: service-a
+version: "1.0"
+port: 8080

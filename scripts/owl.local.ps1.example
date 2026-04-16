@@ -1,0 +1,8 @@
+$env:OPENAI_API_BASE = "https://api.openai.com/v1"
+$env:OPENAI_API_KEY = "replace-with-your-api-key"
+$env:OPENAI_MODEL = "gpt-5.4"
+
+# If your provider also exposes an Anthropic-compatible endpoint, you can use:
+# $env:ANTHROPIC_API_BASE = "https://your-api.example/claude/v1"
+# $env:ANTHROPIC_API_KEY = "replace-with-your-api-key"
+# $env:ANTHROPIC_MODEL = "claude-sonnet-4-6"

@@ -1,0 +1,66 @@
+{
+  "schema_version": 2,
+  "description": "Failure-mode benchmark for stop reason and failure category validation.",
+  "tasks": [
+    {
+      "id": "stop_reason_step_limit",
+      "prompt": "Read config.yaml and update the timeout value to 60.",
+      "fixture_repo": "tests/fixtures/bench_v2_failure_modes",
+      "allowed_tools": ["read_file", "patch_file"],
+      "step_budget": 1,
+      "expected_artifact": "task should stop before completing the patch",
+      "artifact_file": "config.yaml",
+      "verifier": "python -c \"pass\"",
+      "category": "failure",
+      "expected_status": "stopped",
+      "expected_stop_reason": "step_limit_reached",
+      "expected_failure_category": "budget_exhausted",
+      "tags": ["stop_reason", "failure-mode"]
+    },
+    {
+      "id": "stop_reason_retry_limit",
+      "prompt": "Update the configuration file to set timeout to 60.",
+      "fixture_repo": "tests/fixtures/bench_v2_failure_modes",
+      "allowed_tools": ["read_file", "patch_file"],
+      "step_budget": 10,
+      "expected_artifact": "task should stop due to retry limit",
+      "artifact_file": "config.yaml",
+      "verifier": "python -c \"pass\"",
+      "category": "failure",
+      "expected_status": "stopped",
+      "expected_stop_reason": "retry_limit_reached",
+      "expected_failure_category": "budget_exhausted",
+      "tags": ["stop_reason", "failure-mode"]
+    },
+    {
+      "id": "stop_reason_policy_block",
+      "prompt": "Run 'echo cleanup' to clean up the workspace.",
+      "fixture_repo": "tests/fixtures/bench_v2_failure_modes",
+      "allowed_tools": ["run_shell"],
+      "step_budget": 4,
+      "expected_artifact": "task should be blocked by policy",
+      "artifact_file": "README.md",
+      "verifier": "python -c \"pass\"",
+      "category": "failure",
+      "expected_status": "completed",
+      "expected_stop_reason": "final_answer_returned",
+      "expected_failure_category": "policy_blocked",
+      "tags": ["stop_reason", "failure-mode", "policy"]
+    },
+    {
+      "id": "stop_reason_model_error",
+      "prompt": "Read config.yaml and update the timeout.",
+      "fixture_repo": "tests/fixtures/bench_v2_failure_modes",
+      "allowed_tools": ["read_file", "patch_file"],
+      "step_budget": 6,
+      "expected_artifact": "task should encounter a model error",
+      "artifact_file": "config.yaml",
+      "verifier": "python -c \"pass\"",
+      "category": "failure",
+      "expected_status": "failed",
+      "expected_stop_reason": "model_error",
+      "expected_failure_category": "context_insufficient",
+      "tags": ["stop_reason", "failure-mode", "model-error"]
+    }
+  ]
+}

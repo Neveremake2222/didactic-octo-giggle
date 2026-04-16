@@ -1,0 +1,65 @@
+# Python
+__pycache__/
+*.py[cod]
+*.pyo
+*.pyd
+
+# Virtual environments
+.venv/
+venv/
+uv.lock
+
+# Packaging
+*.egg-info/
+build/
+dist/
+
+# Test and lint caches
+.pytest_cache/
+.ruff_cache/
+.coverage
+htmlcov/
+
+# Temporary files
+*.tmp
+*.temp
+*.swp
+*.swo
+*~
+
+# Runtime data (sessions, traces, runs)
+.owl/
+
+# Local scratch space
+tmp/
+.tmp/
+.worktrees/
+.pip-cache/
+.pytest-tmp-run/
+
+# Benchmark / eval outputs
+artifacts/
+results/
+
+# Test fixtures with local paths
+readme_intro_locked/
+
+# Local scripts (may contain secrets)
+scripts/owl.local.ps1
+*.bat
+
+# IDE and tool configs
+.claude/
+.idea/
+.vscode/
+
+# Docs not for publication
+docs/
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# Personal / internal docs
+RESUME_*.md
+REFACTOR_CHANGELOG.md
