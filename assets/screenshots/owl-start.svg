@@ -28,7 +28,7 @@
   <text class="mono" x="600" y="428" text-anchor="middle">/___/|    |\___\</text>
   <text class="mono accent" x="600" y="486" text-anchor="middle">owl</text>
   <text class="mono dim small" x="600" y="526" text-anchor="middle">local coding agent</text>
-  <text class="mono dim small" x="600" y="560" text-anchor="middle">calm shell, ready for work</text>
+  <text class="mono dim small" x="600" y="560" text-anchor="middle">Assemble, act, perfect.</text>
   <text class="mono small" x="32" y="562">WORKSPACE  E:\agentcode\owl</text>
   <text class="mono small" x="32" y="614">MODEL     gpt-5.4</text>
   <text class="mono small" x="650" y="614">BRANCH    master</text>

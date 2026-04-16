@@ -44,7 +44,7 @@ WELCOME_ART = (
 )
 WELCOME_NAME = "owl"
 WELCOME_SUBTITLE = "local coding agent"
-WELCOME_STATUS = "calm shell, ready for work"
+WELCOME_STATUS = "Assemble, act, perfect."
 HELP_DETAILS = textwrap.dedent(
     """\
     Commands:
