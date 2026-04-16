@@ -7,7 +7,7 @@
 `owl` is a lightweight local coding agent built for real code repositories. It runs in the terminal, understands the current workspace, and uses constrained tools to read files, edit code, and execute commands inside the actual project context.
 
 It supports Ollama, OpenAI-compatible APIs, and Anthropic-compatible APIs, with built-in session persistence, context assembly, memory management, and benchmark/evaluation workflows. It is designed for repository analysis, bug fixing, test debugging, and iterative engineering tasks.
-
+参考开源架构包括 pico的架构(https://gitee.com/htxoffical/pico/tree/main), opencode和openclaw的记忆系统等开源代码.
 ## 适合做什么
 
 - 在本地仓库里排查测试失败
