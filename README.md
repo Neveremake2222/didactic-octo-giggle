@@ -29,17 +29,13 @@ It supports Ollama, OpenAI-compatible APIs, and Anthropic-compatible APIs, with 
 
 ## 使用截图
 
-CLI 帮助信息：
-
-![owl help](assets/screenshots/owl-help.png)
-
 启动界面：
 
-![owl start](assets/screenshots/owl-start.png)
+![owl start](assets/screenshots/owl-start.svg)
 
-REPL 内置命令与会话路径：
+REPL 帮助示例：
 
-![owl repl](assets/screenshots/owl-repl.png)
+![owl repl help](assets/screenshots/owl-repl-help.svg)
 
 ## 安装
 

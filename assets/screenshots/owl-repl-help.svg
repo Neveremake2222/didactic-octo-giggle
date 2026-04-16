@@ -1,0 +1,34 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1280" height="1060" viewBox="0 0 1280 1060" role="img" aria-labelledby="title desc">
+  <title id="title">owl repl help screen</title>
+  <desc id="desc">Terminal-style REPL help example for owl.</desc>
+  <style>
+    .bg { fill: #111315; }
+    .mono { font-family: Consolas, "Cascadia Mono", "Courier New", monospace; fill: #f1f1f1; font-size: 24px; }
+    .prompt { fill: #f6f6f6; font-weight: 700; }
+    .dim { fill: #d0d0d0; }
+  </style>
+  <rect class="bg" x="0" y="0" width="1280" height="1060"/>
+  <text class="mono prompt" x="16" y="48">owl&gt; help</text>
+  <text class="mono" x="16" y="118">Hi! I can inspect this repo, read code, edit files, and run commands/tests when needed.</text>
+  <text class="mono" x="16" y="178">What would you like help with?</text>
+  <text class="mono dim" x="16" y="218">- inspect project structure</text>
+  <text class="mono dim" x="16" y="254">- explain a file/module</text>
+  <text class="mono dim" x="16" y="290">- implement or fix something</text>
+  <text class="mono dim" x="16" y="326">- add/update tests</text>
+  <text class="mono dim" x="16" y="362">- run lint/tests</text>
+  <text class="mono dim" x="16" y="398">- search for specific code</text>
+  <text class="mono prompt" x="16" y="474">owl&gt; 你有哪些指令</text>
+  <text class="mono" x="16" y="548">我可以做这些事：</text>
+  <text class="mono dim" x="16" y="592">- 查看仓库结构：列出文件/目录</text>
+  <text class="mono dim" x="16" y="628">- 读取代码：按文件和行号查看内容</text>
+  <text class="mono dim" x="16" y="664">- 搜索内容：查找函数、类、关键字、报错信息</text>
+  <text class="mono dim" x="16" y="700">- 修改文件：新建文件、重写文件、精确补丁修改</text>
+  <text class="mono dim" x="16" y="736">- 运行命令：执行测试、lint、构建等</text>
+  <text class="mono dim" x="16" y="772">- 只读委托：让子代理做有限的只读调查</text>
+  <text class="mono" x="16" y="846">对应工具大致是：</text>
+  <text class="mono dim" x="16" y="890">- list_files(path): 列出文件</text>
+  <text class="mono dim" x="16" y="926">- read_file(path, start, end): 读取文件片段</text>
+  <text class="mono dim" x="16" y="962">- search(pattern, path): 搜索代码/文本</text>
+  <text class="mono dim" x="16" y="998">- patch_file(path, old_text, new_text): 精确替换文本</text>
+  <text class="mono dim" x="16" y="1034">- run_shell(command, timeout): 运行 shell 命令</text>
+</svg>

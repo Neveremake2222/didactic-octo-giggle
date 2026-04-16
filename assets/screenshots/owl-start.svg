@@ -1,0 +1,37 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1280" height="720" viewBox="0 0 1280 720" role="img" aria-labelledby="title desc">
+  <title id="title">owl start screen</title>
+  <desc id="desc">Terminal-style startup screen for owl.</desc>
+  <style>
+    .bg { fill: #111315; }
+    .frame { fill: none; stroke: #c7b28f; stroke-width: 2; }
+    .panel { fill: none; stroke: #c7b28f; stroke-width: 2; stroke-dasharray: 6 4; }
+    .mono { font-family: Consolas, "Cascadia Mono", "Courier New", monospace; fill: #f1f1f1; font-size: 28px; }
+    .dim { fill: #d8d8d8; }
+    .accent { fill: #e8d0a0; }
+    .small { font-size: 24px; }
+  </style>
+  <rect class="bg" x="0" y="0" width="1280" height="720"/>
+  <rect class="frame" x="8" y="8" width="1264" height="704"/>
+  <rect class="panel" x="8" y="8" width="1264" height="470"/>
+  <rect class="panel" x="8" y="492" width="1264" height="220"/>
+  <text class="mono" x="600" y="54" text-anchor="middle"> \   /\   / </text>
+  <text class="mono" x="600" y="88" text-anchor="middle">  \ /  \ /  </text>
+  <text class="mono" x="600" y="122" text-anchor="middle">  _\_  \/_/_ </text>
+  <text class="mono" x="600" y="156" text-anchor="middle"> /    \/    \ </text>
+  <text class="mono" x="600" y="190" text-anchor="middle">|  O      O  |</text>
+  <text class="mono" x="600" y="224" text-anchor="middle">|    \__/    |</text>
+  <text class="mono" x="600" y="258" text-anchor="middle">\  /    \  /</text>
+  <text class="mono" x="600" y="292" text-anchor="middle"> \/      \/ </text>
+  <text class="mono" x="600" y="326" text-anchor="middle"> _/\______/\_ </text>
+  <text class="mono" x="600" y="360" text-anchor="middle">/   \    /   \</text>
+  <text class="mono" x="600" y="394" text-anchor="middle">/     \  /     \</text>
+  <text class="mono" x="600" y="428" text-anchor="middle">/___/|    |\___\</text>
+  <text class="mono accent" x="600" y="486" text-anchor="middle">owl</text>
+  <text class="mono dim small" x="600" y="526" text-anchor="middle">local coding agent</text>
+  <text class="mono dim small" x="600" y="560" text-anchor="middle">calm shell, ready for work</text>
+  <text class="mono small" x="32" y="562">WORKSPACE  E:\agentcode\owl</text>
+  <text class="mono small" x="32" y="614">MODEL     gpt-5.4</text>
+  <text class="mono small" x="650" y="614">BRANCH    master</text>
+  <text class="mono small" x="32" y="666">APPROVAL  ask</text>
+  <text class="mono small" x="650" y="666">SESSION   20260416-142410-31ccce</text>
+</svg>
