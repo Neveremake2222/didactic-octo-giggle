@@ -1,12 +1,11 @@
 # owl
 
-`owl` 是一个面向代码仓库的轻量本地 coding agent。它直接跑在终端里，先看当前工作区，再用一组受约束的工具去读文件、改文件、跑命令，并把会话状态保存在本地 `.owl/` 目录里。
+`owl` 是一个面向真实代码仓库的本地 AI Coding Agent，运行在终端中，能够结合当前工作区上下文，通过受约束的工具完成代码读取、文件修改、命令执行和任务推进。它的核心优势在于分层记忆系统，将短期工作记忆、过程压缩和长期语义记忆解耦管理，从而提升多轮任务中的上下文保持、历史经验复用和连续工程执行能力。
 
-它更像一个能在仓库里持续工作的命令行助手，不是纯聊天窗口。你可以拿它做代码排查、测试修复、仓库分析，或者让它在当前项目里执行一次性的工程任务。
-
-`owl` is a lightweight local coding agent built for real code repositories. It runs in the terminal, understands the current workspace, and uses constrained tools to read files, edit code, and execute commands inside the actual project context.
+owl is a local AI coding agent built for real repositories and designed to work directly in the terminal. Its main strength is a layered memory architecture that separates working memory, compaction, and long-term semantic memory, enabling stronger context retention, reusable cross-run knowledge, and more stable multi-step engineering workflows across real coding tasks.
 
 It supports Ollama, OpenAI-compatible APIs, and Anthropic-compatible APIs, with built-in session persistence, context assembly, memory management, and benchmark/evaluation workflows. It is designed for repository analysis, bug fixing, test debugging, and iterative engineering tasks.
+
 参考开源架构包括 pico的架构(https://gitee.com/htxoffical/pico/tree/main), opencode和openclaw的记忆系统等开源代码.
 ## 适合做什么
 
