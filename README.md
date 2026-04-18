@@ -6,6 +6,9 @@ owl is a local AI coding agent built for real repositories and designed to work 
 
 It supports Ollama, OpenAI-compatible APIs, and Anthropic-compatible APIs, with built-in session persistence, context assembly, memory management, and benchmark/evaluation workflows. It is designed for repository analysis, bug fixing, test debugging, and iterative engineering tasks.
 
+
+我对 owl 的理解不只是一个本地 coding assistant，而是一个可复用的 harness 内核。短期它是独立运行的 coding agent，长期我希望把它继续做成一个可以被上层 agent 调用的外接能力模块，让 Claude Code / Codex 这类 code agent 在需要代码修复、错误定位和记忆复用时，把任务委托给 owl，复用它的 repo-level memory、执行轨迹和恢复逻辑。
+
 参考开源架构包括 pico的架构(https://gitee.com/htxoffical/pico/tree/main), opencode和openclaw的记忆系统等开源代码.
 ## 适合做什么
 
