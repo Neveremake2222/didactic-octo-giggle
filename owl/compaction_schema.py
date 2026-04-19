@@ -127,6 +127,9 @@ def build_schema_from_working_memory(
     wm: WorkingMemory,
     run_id: str,
     original_request: str,
+    *,
+    max_completed_work: int = 10,
+    min_completion_length: int = 20,
 ) -> CompactionSchema:
     """从 WorkingMemory 快照生成 CompactionSchema。
 
@@ -137,6 +140,8 @@ def build_schema_from_working_memory(
       wm               — 当前 WorkingMemory 实例
       run_id           — 唯一 run 标识
       original_request — 用户的原始请求（来自 ask() 入口参数）
+      max_completed_work — completed_work 列表最大长度（防止膨胀）
+      min_completion_length — 单条 completed_work 最小字符数（过滤噪声）
     """
     # 从 observations 提取观察过的文件
     files_observed = []
@@ -150,9 +155,10 @@ def build_schema_from_working_memory(
         path = _extract_path_from_summary(summary)
         if path:
             files_observed.append(path)
-        # 已完成的假设（含有完成/成功关键词）
+        # 已完成的假设（含有完成/成功关键词，且长度足够）
         if any(kw in summary.lower() for kw in ("done", "success", "pass", "fixed", "updated")):
-            completed_work.append(summary[:200])
+            if len(summary) >= min_completion_length:
+                completed_work.append(summary[:200])
         # 假设测试（含有 hypothesis 关键词）
         if "hypothesis" in summary.lower():
             hypotheses_tested.append(summary[:200])
@@ -164,6 +170,11 @@ def build_schema_from_working_memory(
     files_observed = list(dict.fromkeys(files_observed))
     hypotheses_tested = list(dict.fromkeys(hypotheses_tested))
     completed_work = list(dict.fromkeys(completed_work))
+
+    # 限制 completed_work 长度（按长度降序保留最有信息量的条目）
+    if len(completed_work) > max_completed_work:
+        completed_work.sort(key=len, reverse=True)
+        completed_work = completed_work[:max_completed_work]
 
     # 生成 summary_text
     summary_parts = []

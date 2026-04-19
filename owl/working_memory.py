@@ -75,6 +75,13 @@ class WorkingMemory:
     # 当前计划（下一步准备做什么）
     plan: str = ""
 
+    # P0: 结构化执行计划（由 planner 生成）
+    structured_plan: dict | None = None
+
+    # P0: 验证结果追踪
+    verification_history: list[dict] = field(default_factory=list)
+    consecutive_verification_failures: int = 0
+
     # 最近观察（工具结果摘要）
     recent_observations: list[Observation] = field(default_factory=list)
 
@@ -100,6 +107,32 @@ class WorkingMemory:
     def set_plan(self, plan: str) -> None:
         """更新当前计划。"""
         self.plan = plan.strip()
+
+    def set_structured_plan(self, plan_dict: dict) -> None:
+        """存储来自 planner 的结构化执行计划，同时更新兼容的字符串 plan。"""
+        self.structured_plan = plan_dict
+        if plan_dict.get("no_action_needed"):
+            self.plan = "No action needed: " + plan_dict.get("direct_answer", "")
+        elif plan_dict.get("steps"):
+            self.plan = "; ".join(
+                f"Step {s.get('step', '?')}: {s.get('description', '')}"
+                for s in plan_dict["steps"]
+            )
+
+    def add_verification_result(self, result: dict) -> None:
+        """记录一次验证结果，追踪连续失败次数。"""
+        self.verification_history.append(result)
+        if len(self.verification_history) > 20:
+            self.verification_history = self.verification_history[-20:]
+        if result.get("progress") == "no":
+            self.consecutive_verification_failures += 1
+        else:
+            self.consecutive_verification_failures = 0
+
+    def clear_verification_state(self) -> None:
+        """重置验证追踪状态（新 ask 调用时使用）。"""
+        self.verification_history = []
+        self.consecutive_verification_failures = 0
 
     def set_task_summary(self, summary: str) -> None:
         """记录当前任务摘要。"""
@@ -178,7 +211,13 @@ class WorkingMemory:
 
         if self.task_summary:
             lines.append(f"- task: {self.task_summary}")
-        if self.plan:
+        if self.structured_plan and self.structured_plan.get("steps"):
+            lines.append("- planned steps:")
+            for step in self.structured_plan["steps"][:5]:
+                lines.append(
+                    f"  {step.get('step', '?')}. {step.get('description', '')} [{step.get('tool', '?')}]"
+                )
+        elif self.plan:
             lines.append(f"- plan: {self.plan}")
         if self.recent_observations:
             lines.append(f"- observations({len(self.recent_observations)}):")
@@ -200,6 +239,9 @@ class WorkingMemory:
     def to_dict(self) -> dict[str, Any]:
         return {
             "plan": self.plan,
+            "structured_plan": self.structured_plan,
+            "verification_history": list(self.verification_history),
+            "consecutive_verification_failures": self.consecutive_verification_failures,
             "recent_observations": [obs.to_dict() for obs in self.recent_observations],
             "active_hypotheses": list(self.active_hypotheses),
             "candidate_targets": list(self.candidate_targets),
@@ -212,6 +254,9 @@ class WorkingMemory:
     def from_dict(cls, data: dict[str, Any]) -> WorkingMemory:
         wm = cls(
             plan=str(data.get("plan", "")),
+            structured_plan=data.get("structured_plan"),
+            verification_history=list(data.get("verification_history", [])),
+            consecutive_verification_failures=int(data.get("consecutive_verification_failures", 0)),
             active_hypotheses=list(data.get("active_hypotheses", [])),
             candidate_targets=list(data.get("candidate_targets", [])),
             pending_verifications=list(data.get("pending_verifications", [])),

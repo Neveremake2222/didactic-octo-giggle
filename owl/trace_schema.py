@@ -67,6 +67,21 @@ EVENT_MEMORY_RANKED = "memory_ranked"
 EVENT_MEMORY_DEDUPLICATED = "memory_deduplicated"
 EVENT_PROCEDURE_CANDIDATES_DETECTED = "procedure_candidates_detected"
 
+# Phase 5: Skill 持久化与晋升事件
+EVENT_SKILL_REGISTRY_PERSISTED = "skill_registry_persisted"
+EVENT_SKILL_CANDIDATE_PROMOTED = "skill_candidate_promoted"
+EVENT_SKILL_CANDIDATE_REJECTED = "skill_candidate_rejected"
+
+# P0 执行闭环事件
+EVENT_PLAN_GENERATED = "plan_generated"
+EVENT_PLAN_FAILED = "plan_failed"
+EVENT_DECISION_GATE_APPROVED = "decision_gate_approved"
+EVENT_DECISION_GATE_REJECTED = "decision_gate_rejected"
+EVENT_DECISION_GATE_MODIFIED = "decision_gate_modified"
+EVENT_TOOL_RETRY_SUCCEEDED = "tool_retry_succeeded"
+EVENT_TOOL_RETRY_FAILED = "tool_retry_failed"
+EVENT_TOOL_ALTERNATIVE_TRIED = "tool_alternative_tried"
+
 
 # ---------------------------------------------------------------------------
 # 工具状态常量

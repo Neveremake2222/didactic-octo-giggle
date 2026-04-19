@@ -26,6 +26,13 @@ PHASE_TOOL_EXECUTING = "tool_executing"
 PHASE_FINISHED = "finished"
 PHASE_STOPPED = "stopped"
 
+# P0 执行闭环阶段
+PHASE_PLANNING = "planning"
+PHASE_DECISION_GATE = "decision_gate"
+PHASE_VERIFYING = "verifying"
+PHASE_TOOL_RETRYING = "tool_retrying"
+PHASE_MODEL_RETRYING = "model_retrying"
+
 
 @dataclass
 class ExecutionState:

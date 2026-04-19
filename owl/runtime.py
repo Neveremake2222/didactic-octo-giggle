@@ -24,6 +24,7 @@ from .workspace import MAX_HISTORY, WorkspaceContext, clip, now
 
 # 新模块接入
 from .execution_state import ExecutionState, PHASE_INITIALIZING, PHASE_PROMPT_BUILDING, PHASE_MODEL_CALLING, PHASE_TOOL_EXECUTING, PHASE_FINISHED
+from .execution_state import PHASE_PLANNING, PHASE_DECISION_GATE, PHASE_VERIFYING
 from .context_snapshot import ContextSnapshot
 from .working_memory import WorkingMemory
 from .semantic_memory import SemanticMemory
@@ -42,7 +43,26 @@ from .trace_schema import (
     EVENT_MEMORY_RANKED,
     EVENT_MEMORY_DEDUPLICATED,
     EVENT_PROCEDURE_CANDIDATES_DETECTED,
+    EVENT_SKILL_REGISTRY_PERSISTED,
+    EVENT_VERIFICATION_PASSED,
+    EVENT_VERIFICATION_FAILED,
 )
+from .trace_schema import (
+    EVENT_PLAN_GENERATED,
+    EVENT_PLAN_FAILED,
+    EVENT_DECISION_GATE_APPROVED,
+    EVENT_DECISION_GATE_REJECTED,
+    EVENT_DECISION_GATE_MODIFIED,
+    EVENT_TOOL_RETRY_SUCCEEDED,
+    EVENT_TOOL_RETRY_FAILED,
+    EVENT_TOOL_ALTERNATIVE_TRIED,
+)
+
+# P0 执行闭环模块
+from .planner import ExecutionPlan, generate_plan
+from .verifier import VerificationGate
+from .decision_gate import check_decision_gate, DECISION_GATE_MODE_AUTO, DECISION_GATE_MODE_ASK, DECISION_GATE_MODE_ALWAYS
+from .error_recovery import retry_tool_execution, try_alternative_tool, retry_model_call
 from . import report_builder as _report_builder
 from .failure_analyzer import classify_failure
 
@@ -55,7 +75,7 @@ from .memory_validity import FileFingerprintTracker, SemanticRecordValidityCheck
 from .stale_observation_guard import StaleObservationGuard
 
 # Phase 5 程序性经验检测
-from .skill_candidate_registry import SkillCandidateRegistry
+from .skill_candidate_registry import SkillCandidateRegistry, DEFAULT_SKILL_REGISTRY_PATH
 
 SENSITIVE_ENV_NAME_MARKERS = ("API_KEY", "TOKEN", "SECRET", "PASSWORD")
 REDACTED_VALUE = "<redacted>"
@@ -73,6 +93,11 @@ DEFAULT_FEATURE_FLAGS = {
     "stale_guard": True,
     "quality_recall": True,
     "procedure_detection": True,
+    # P0 执行闭环（默认关闭，不破坏现有行为）
+    "planning": False,
+    "verification_gate": False,
+    "decision_gate": False,
+    "error_recovery": False,
 }
 
 
@@ -125,12 +150,14 @@ class Owl:
         shell_env_allowlist=None,
         secret_env_names=None,
         feature_flags=None,
+        decision_gate_mode="auto",
     ):
         self.model_client = model_client
         self.workspace = workspace
         self.root = Path(workspace.repo_root)
         self.session_store = session_store
         self.approval_policy = approval_policy
+        self.decision_gate_mode = decision_gate_mode
         self.max_steps = max_steps
         self.max_new_tokens = max_new_tokens
         self.depth = depth
@@ -370,9 +397,10 @@ class Owl:
         )
 
     def _detect_and_emit_procedure_candidates(self, task_state: TaskState) -> None:
-        """检测并发出程序性经验候选 trace。"""
+        """检测并发出程序性经验候选 trace，并持久化 registry。"""
         if not hasattr(self, "_skill_registry") or self._skill_registry is None:
-            self._skill_registry = SkillCandidateRegistry()
+            registry_path = self.root / ".owl" / DEFAULT_SKILL_REGISTRY_PATH
+            self._skill_registry = SkillCandidateRegistry.load(registry_path)
         candidates = self._memory_compactor.detect_procedure_candidates(
             self.working_memory, task_state.run_id, self._skill_registry
         )
@@ -382,6 +410,60 @@ class Owl:
                 EVENT_PROCEDURE_CANDIDATES_DETECTED,
                 {"count": len(candidates), "types": [c.pattern_type for c in candidates]},
             )
+        # 持久化 registry（即使本轮没有新 candidate，也要保存已有的）
+        registry_path = self.root / ".owl" / DEFAULT_SKILL_REGISTRY_PATH
+        self._skill_registry.save(registry_path)
+
+    # -------------------------------------------------------------------------
+    # P0 执行闭环辅助方法
+    # -------------------------------------------------------------------------
+
+    def _run_planning_phase(self, user_message, task_state, execution_state):
+        """执行规划阶段：调用模型生成结构化执行计划。"""
+        execution_state.transition(PHASE_PLANNING)
+        self.emit_trace(task_state, "state_transition", {"phase": PHASE_PLANNING, "step": 0})
+        try:
+            plan = generate_plan(
+                self.model_client, user_message, self.max_new_tokens,
+                existing_context=self.memory_text(),
+            )
+            self.working_memory.set_structured_plan({
+                "steps": [
+                    {"step": s.step_number, "tool": s.tool,
+                     "rationale": s.rationale, "description": s.description}
+                    for s in plan.steps
+                ],
+                "no_action_needed": plan.no_action_needed,
+                "direct_answer": plan.direct_answer,
+            })
+            self.emit_trace(
+                task_state, EVENT_PLAN_GENERATED,
+                {"steps": len(plan.steps), "no_action_needed": plan.no_action_needed},
+            )
+            return plan
+        except Exception as exc:
+            self.emit_trace(task_state, EVENT_PLAN_FAILED, {"error": repr(exc)})
+            return ExecutionPlan(steps=[], no_action_needed=False)
+
+    def _run_tool_with_recovery(self, name, args):
+        """带错误恢复的工具执行：重试 → 降级替代 → 报错。"""
+        outcome = retry_tool_execution(self.run_tool, name, args)
+        if outcome.success:
+            return outcome.result
+        alt_outcome = try_alternative_tool(self.run_tool, name, args, outcome.result)
+        if alt_outcome.success:
+            return alt_outcome.result
+        errors = "; ".join(outcome.error_log + alt_outcome.error_log)
+        return f"error: all recovery attempts failed for {name}: {errors}"
+
+    def _render_tool_history(self):
+        """渲染最近的工具执行历史，供验证上下文使用。"""
+        tool_events = [item for item in self.session["history"] if item.get("role") == "tool"]
+        lines = []
+        for item in tool_events[-6:]:
+            content = str(item.get("content", ""))
+            lines.append(f"[{item.get('name', '?')}] {clip(content, 100)}")
+        return "\n".join(lines) or "(no tool history)"
 
     @staticmethod
     def remember(bucket, item, limit):
@@ -775,6 +857,23 @@ class Owl:
         self.working_memory = WorkingMemory()
         self.working_memory.set_task_summary(user_message)
 
+        # P0: 规划阶段（可选）
+        execution_plan: ExecutionPlan | None = None
+        if self.feature_flags.get("planning"):
+            execution_plan = self._run_planning_phase(user_message, task_state, execution_state)
+            if execution_plan.no_action_needed:
+                final = execution_plan.direct_answer
+                self.record({"role": "assistant", "content": final, "created_at": now()})
+                task_state.finish_success(final)
+                return self._finalize_success(
+                    task_state, execution_state, final, run_started_at, user_message
+                )
+
+        # P0: 验证门控初始化（可选）
+        verification_gate: VerificationGate | None = None
+        if self.feature_flags.get("verification_gate"):
+            verification_gate = VerificationGate()
+
         # Phase 2+: 注入最新 memory 实例到 ContextManager
         self.context_manager._working_memory = self.working_memory
         self.context_manager._semantic_memory = self.semantic_memory
@@ -823,6 +922,12 @@ class Owl:
             )
 
             prompt, prompt_metadata = self._build_prompt_and_metadata(user_message)
+
+            # P0: 注入执行计划到 prompt
+            if execution_plan:
+                plan_text = execution_plan.render_for_context()
+                if plan_text:
+                    prompt = plan_text + "\n\n" + prompt
 
             # 新模块：创建并发出 context_snapshot
             ctx_snapshot = ContextSnapshot.from_build_result(
@@ -883,12 +988,25 @@ class Owl:
                 prompt_cache_key = prompt_metadata.get("prompt_cache_key")
                 prompt_cache_retention = "in_memory"
             model_started_at = time.monotonic()
-            raw = self.model_client.complete(
-                prompt,
-                self.max_new_tokens,
-                prompt_cache_key=prompt_cache_key,
-                prompt_cache_retention=prompt_cache_retention,
-            )
+            if self.feature_flags.get("error_recovery"):
+                success, raw_or_error = retry_model_call(
+                    self.model_client.complete, prompt, self.max_new_tokens,
+                    prompt_cache_key=prompt_cache_key,
+                    prompt_cache_retention=prompt_cache_retention,
+                )
+                if not success:
+                    final = raw_or_error
+                    return self._finalize_stop(
+                        task_state, execution_state, final, run_started_at, user_message, "model_error"
+                    )
+                raw = raw_or_error
+            else:
+                raw = self.model_client.complete(
+                    prompt,
+                    self.max_new_tokens,
+                    prompt_cache_key=prompt_cache_key,
+                    prompt_cache_retention=prompt_cache_retention,
+                )
             completion_metadata = dict(getattr(self.model_client, "last_completion_metadata", {}) or {})
             if completion_metadata:
                 # 把后端返回的 usage/cache 统计并回 prompt_metadata，
@@ -912,6 +1030,28 @@ class Owl:
                 name = payload.get("name", "")
                 args = payload.get("args", {})
 
+                # P0: 人工决策闸门（可选）
+                if self.feature_flags.get("decision_gate"):
+                    execution_state.transition(PHASE_DECISION_GATE)
+                    tool_spec = self.tools.get(name, {})
+                    gate_result = check_decision_gate(
+                        gate_mode=self.decision_gate_mode,
+                        tool_name=name,
+                        tool_args=args,
+                        tool_spec=tool_spec,
+                    )
+                    if gate_result.action == "reject":
+                        self.emit_trace(task_state, EVENT_DECISION_GATE_REJECTED,
+                                        {"tool": name, "args": args})
+                        continue
+                    if gate_result.action == "modify":
+                        args = gate_result.modified_args or args
+                        self.emit_trace(task_state, EVENT_DECISION_GATE_MODIFIED,
+                                        {"tool": name, "modified_args": args})
+                    else:
+                        self.emit_trace(task_state, EVENT_DECISION_GATE_APPROVED,
+                                        {"tool": name})
+
                 # 新模块：状态转换 → tool_executing
                 execution_state.transition(PHASE_TOOL_EXECUTING)
                 execution_state.record_tool_call(name)
@@ -927,7 +1067,11 @@ class Owl:
 
                 task_state.record_tool(name)
                 tool_started_at = time.monotonic()
-                result = self.run_tool(name, args)
+                # P0: 错误恢复包装工具执行
+                if self.feature_flags.get("error_recovery"):
+                    result = self._run_tool_with_recovery(name, args)
+                else:
+                    result = self.run_tool(name, args)
                 self.record(
                     {
                         "role": "tool",
@@ -994,6 +1138,35 @@ class Owl:
 
                 execution_state.observe(clip(result, 200))
 
+                # P0: 工具结果验证（可选）
+                if self.feature_flags.get("verification_gate") and verification_gate:
+                    execution_state.transition(PHASE_VERIFYING)
+                    plan_text = execution_plan.render_for_context() if execution_plan else ""
+                    v_result = verification_gate.verify_tool_result(
+                        self.model_client, user_message, plan_text,
+                        name, result, self.max_new_tokens,
+                    )
+                    self.working_memory.add_verification_result({
+                        "tool": name, "progress": v_result.progress,
+                        "notes": v_result.notes,
+                    })
+                    self.emit_trace(
+                        task_state,
+                        EVENT_VERIFICATION_PASSED if v_result.passed else EVENT_VERIFICATION_FAILED,
+                        {"tool": name, "progress": v_result.progress,
+                         "notes": v_result.notes,
+                         "consecutive_failures": verification_gate._consecutive_failures},
+                    )
+                    if verification_gate.should_stop:
+                        final = (
+                            f"Stopped: {verification_gate._max_failures} consecutive verification "
+                            f"failures. Last: {v_result.notes}"
+                        )
+                        return self._finalize_stop(
+                            task_state, execution_state, final,
+                            run_started_at, user_message, "verification_failed"
+                        )
+
                 self.run_store.write_task_state(task_state)
                 self.emit_trace(
                     task_state,
@@ -1014,6 +1187,24 @@ class Owl:
                 continue
 
             final = (payload or raw).strip()
+
+            # P0: 最终验证（可选）
+            if self.feature_flags.get("verification_gate") and verification_gate:
+                plan_text = execution_plan.render_for_context() if execution_plan else ""
+                v_result = verification_gate.verify_final_answer(
+                    self.model_client, user_message, plan_text,
+                    final, self.max_new_tokens,
+                )
+                self.working_memory.add_verification_result({
+                    "is_final": True, "progress": v_result.progress,
+                    "notes": v_result.notes,
+                })
+                self.emit_trace(
+                    task_state,
+                    EVENT_VERIFICATION_PASSED if v_result.passed else EVENT_VERIFICATION_FAILED,
+                    {"is_final": True, "progress": v_result.progress, "notes": v_result.notes},
+                )
+
             self.record({"role": "assistant", "content": final, "created_at": now()})
             task_state.finish_success(final)
             return self._finalize_success(

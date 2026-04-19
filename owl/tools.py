@@ -301,6 +301,7 @@ def tool_delegate(agent, args):
         read_only=True,
         secret_env_names=agent.secret_env_names,
         shell_env_allowlist=agent.shell_env_allowlist,
+        decision_gate_mode="auto",
     )
     # 委派的目标是“调查”，不是“放权执行”。
     # 子 agent 以只读方式运行、步数更少，最后只把结论文本返回给父 agent。

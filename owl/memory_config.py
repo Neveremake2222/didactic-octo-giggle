@@ -56,3 +56,14 @@ SIMILARITY_THRESHOLD = 0.85  # 相似度阈值（>85% 视为重复）
 # ---------------------------------------------------------------------------
 
 MIN_TOKEN_LEN = 2  # 最短有效 token 长度
+
+# ---------------------------------------------------------------------------
+# P0 执行闭环（来自 planner.py, verifier.py, error_recovery.py）
+# ---------------------------------------------------------------------------
+
+MAX_PLAN_STEPS = 10  # 执行计划最大步骤数
+MAX_CONSECUTIVE_VERIFICATION_FAILURES = 3  # 连续验证失败后停止的阈值
+MAX_TOOL_RETRIES = 2  # 单个工具失败后最大重试次数
+MAX_MODEL_RETRIES = 3  # 模型调用失败后最大重试次数
+BASE_BACKOFF_SECONDS = 1.0  # 重试的初始退避时间（秒）
+MAX_BACKOFF_SECONDS = 8.0  # 重试的最大退避时间（秒）

@@ -217,19 +217,24 @@ class MemoryCompactor:
           - remaining_tasks（每条一个）
           - run_summary
 
+        写入前做相似度去重：如果已有记录的内容与待写入内容高度相似
+        （前缀 token overlap >= 80%），跳过写入。
+
         Returns:
-            写入报告，包含 written_count / skipped_count / written_items。
+            写入报告，包含 written_count / skipped_count / written_items / deduped_count。
         """
         if not schema.is_meaningful():
             return {
                 "written_count": 0,
                 "skipped_count": 0,
+                "deduped_count": 0,
                 "written_items": [],
             }
 
         records = schema_to_semantic_records(schema)
         written_count = 0
         skipped_count = 0
+        deduped_count = 0
         written_items: list[str] = []
 
         for record_id, category, content, tags in records:
@@ -238,10 +243,15 @@ class MemoryCompactor:
                 skipped_count += 1
                 continue
 
-            # 检查是否已存在且内容相同（跳过无意义更新）
+            # 检查是否已存在且内容相同（精确匹配）
             existing = semantic_memory.get(record_id)
             if existing and existing.content == content:
                 skipped_count += 1
+                continue
+
+            # 相似度去重：同 category 的现有记录中，如果存在高度相似的则跳过
+            if self._is_near_duplicate(content, category, semantic_memory):
+                deduped_count += 1
                 continue
 
             semantic_memory.put(SemanticRecord(
@@ -259,9 +269,37 @@ class MemoryCompactor:
         return {
             "written_count": written_count,
             "skipped_count": skipped_count,
+            "deduped_count": deduped_count,
             "written_items": written_items,
             "schema_summary": schema.summary_text,
         }
+
+    @staticmethod
+    def _is_near_duplicate(
+        content: str,
+        category: str,
+        semantic_memory: SemanticMemory,
+        threshold: float = 0.8,
+    ) -> bool:
+        """检查同 category 中是否存在高度相似的记录。
+
+        使用 token overlap 作为相似度指标。
+        阈值 0.8 意味着 80% 的 token 相同就视为重复。
+        """
+        content_tokens = set(content.lower().split())
+        if not content_tokens:
+            return False
+
+        # 搜索同 category 的现有记录
+        existing_records = semantic_memory.search(category=category, top_k=20)
+        for record in existing_records:
+            record_tokens = set(record.content.lower().split())
+            if not record_tokens:
+                continue
+            overlap = len(content_tokens & record_tokens) / max(len(content_tokens), len(record_tokens))
+            if overlap >= threshold:
+                return True
+        return False
 
     def compact_and_promote_v2(
         self,
@@ -326,10 +364,19 @@ class MemoryCompactor:
         参数：
           wm       — WorkingMemory 实例
           run_id   — 当前 run ID
-          registry — SkillCandidateRegistry（如果提供，自动注册检测到的候选）
+          registry — SkillCandidateRegistry（如果提供，自动注册检测到的候选，
+                     并传递 trigger_conditions / anti_patterns / applicable_repo_paths）
         """
         candidates = self._procedure_detector.detect_from_working_memory(wm, run_id)
         if registry and candidates:
             for c in candidates:
-                registry.register(c.pattern_type, c.description, run_id, c.procedure_steps)
+                registry.register(
+                    pattern_type=c.pattern_type,
+                    description=c.description,
+                    run_id=run_id,
+                    procedure_steps=c.procedure_steps,
+                    trigger_conditions=c.trigger_conditions,
+                    anti_patterns=c.anti_patterns,
+                    applicable_repo_paths=c.applicable_repo_paths,
+                )
         return candidates

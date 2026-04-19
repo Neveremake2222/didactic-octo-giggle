@@ -28,11 +28,12 @@ DEFAULT_SECRET_ENV_NAMES = (
 )
 
 WELCOME_ART = (
-    "           /\\_/\\\\",
-    "          (  o o  )",
-    "          /   ^   \\\\",
-    "         /  -----  \\\\",
-    "         \\_\\____/_/",
+    "          /^\\  /^\\",
+    "         / o\\ /o  \\",
+    "        (   \\-/    )",
+    "     ___\\  /---\\  /___",
+    "    /   (  |   |  )   \\",
+    "   /____\\_|___|_/____\\",
 )
 WELCOME_NAME = "owl"
 WELCOME_SUBTITLE = "local coding agent"
@@ -248,6 +249,7 @@ def build_agent(args):
             max_steps=args.max_steps,
             max_new_tokens=args.max_new_tokens,
             secret_env_names=sorted(configured_secret_names),
+            decision_gate_mode=getattr(args, "decision_gate", "auto"),
         )
     return Owl(
         model_client=model,
@@ -257,6 +259,7 @@ def build_agent(args):
         max_steps=args.max_steps,
         max_new_tokens=args.max_new_tokens,
         secret_env_names=sorted(configured_secret_names),
+        decision_gate_mode=getattr(args, "decision_gate", "auto"),
     )
 
 
@@ -279,6 +282,12 @@ def build_arg_parser():
     parser.add_argument("--openai-timeout", type=int, default=300, help="OpenAI-compatible request timeout in seconds.")
     parser.add_argument("--resume", default=None, help="Session id to resume or 'latest'.")
     parser.add_argument("--approval", choices=("ask", "auto", "never"), default="ask", help="Approval policy for risky tools.")
+    parser.add_argument(
+        "--decision-gate",
+        choices=("auto", "ask", "always"),
+        default="auto",
+        help="Decision gate mode: auto (no gate), ask (gate for risky tools), always (gate for all).",
+    )
     parser.add_argument(
         "--secret-env-name",
         dest="secret_env_names",
