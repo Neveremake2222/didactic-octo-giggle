@@ -1,13 +1,9 @@
-"""压缩、整合、沉淀长期记忆。
+"""Compact working memory and promote durable records to semantic memory.
 
-memory_compactor 的职责：
-  - 在 ask() 结束时决定哪些 working memory 内容值得沉淀成长期记忆
-  - 压缩冗余信息
-  - 删除过期信息（freshness 不匹配的）
-  - 防止噪声沉淀（一次性失败、短期中间结果不允许进 semantic memory）
-
-compactor 是 working → semantic 的唯一桥梁。
-不允许任意原文直接沉淀进长期记忆。
+`MemoryCompactor` is the bridge between per-run `WorkingMemory` and cross-run
+`SemanticMemory`. It removes duplicate working-memory items, promotes stable
+file summaries, writes structured run summaries, and detects reusable procedure
+candidates for the skill registry.
 """
 
 from __future__ import annotations
@@ -15,45 +11,29 @@ from __future__ import annotations
 from pathlib import Path
 from typing import Any
 
-from .semantic_memory import SemanticMemory, SemanticRecord
-from .working_memory import WorkingMemory
 from .compaction_schema import (
     CompactionSchema,
     build_schema_from_working_memory,
     schema_to_semantic_records,
 )
-from .procedure_candidate_detector import ProcedureCandidateDetector
-from .memory_utils import extract_path_from_observation, file_fingerprint
-
-
 from .memory_config import MIN_OBSERVATIONS_FOR_PROMOTION
+from .memory_utils import extract_path_from_observation, file_fingerprint
+from .procedure_candidate_detector import ProcedureCandidateDetector
+from .semantic_memory import SemanticMemory, SemanticRecord
+from .working_memory import WorkingMemory
 
 
 class MemoryCompactor:
-    """压缩和整合记忆。
+    """Compact working memory and write selected records to semantic memory."""
 
-    使用方式：
-      compactor = MemoryCompactor()
-      report = compactor.compact_and_promote(
-          working_memory=wm,
-          semantic_memory=sm,
-          workspace_root="/path/to/repo",
-      )
-    """
+    def __init__(self):
+        self._procedure_detector = ProcedureCandidateDetector()
 
     def compact_working_memory(self, wm: WorkingMemory) -> dict[str, Any]:
-        """压缩 working memory，移除冗余信息。
-
-        返回压缩报告：
-          - 移除了多少条目
-          - 保留了什么
-        """
+        """Remove duplicate working-memory observations and candidate fields."""
         before_obs = len(wm.recent_observations)
         before_hyp = len(wm.active_hypotheses)
-        before_cand = len(wm.candidate_targets)
-        before_pend = len(wm.pending_verifications)
 
-        # 去除重复观察
         seen_summaries: set[str] = set()
         unique_obs = []
         for obs in wm.recent_observations:
@@ -63,10 +43,7 @@ class MemoryCompactor:
                 unique_obs.append(obs)
         wm.recent_observations = unique_obs
 
-        # 去除重复假设
         wm.active_hypotheses = list(dict.fromkeys(wm.active_hypotheses))
-
-        # 去除重复候选
         wm.candidate_targets = list(dict.fromkeys(wm.candidate_targets))
 
         after_obs = len(wm.recent_observations)
@@ -86,37 +63,39 @@ class MemoryCompactor:
         sm: SemanticMemory,
         workspace_root: str = "",
     ) -> dict[str, Any]:
-        """将 working memory 中值得长期保留的信息沉淀到 semantic memory。
+        """Promote stable file-backed working observations to semantic memory.
 
-        条件：
-          - 观察中包含文件摘要，且被观察 >= MIN_OBSERVATIONS_FOR_PROMOTION 次
-          - 不是错误信息
-          - 不是一次性中间结果
-
-        返回沉淀报告。
+        A file summary is promoted when the file has enough observations, has a
+        recent read summary, and is not identical to the existing semantic
+        record. Promoted records include file fingerprints so later recall can
+        reject stale memory.
         """
         promoted_count = 0
         skipped_count = 0
         promoted_items: list[str] = []
 
-        # 统计每个路径被观察的次数
         path_obs_count: dict[str, int] = {}
         path_latest_summary: dict[str, str] = {}
+        modified_paths: set[str] = set()
 
         for obs in wm.recent_observations:
-            # 从观察中提取路径信息
             path = self._extract_path_from_observation(obs)
             if not path:
                 continue
 
             path_obs_count[path] = path_obs_count.get(path, 0) + 1
 
-            # 保留最新的摘要
+            if "write" in obs.tool_name or "patch" in obs.tool_name:
+                modified_paths.add(path)
+
             if "read" in obs.tool_name:
                 path_latest_summary[path] = obs.summary
 
-        # 沉淀满足条件的路径
         for path, count in path_obs_count.items():
+            if path in modified_paths:
+                skipped_count += 1
+                continue
+
             if count < MIN_OBSERVATIONS_FOR_PROMOTION:
                 skipped_count += 1
                 continue
@@ -129,7 +108,6 @@ class MemoryCompactor:
             record_id = SemanticMemory.make_record_id("file_summary", path)
             existing = sm.get(record_id)
 
-            # 如果已有记录，检查是否需要更新
             if existing and existing.content == summary:
                 skipped_count += 1
                 continue
@@ -163,10 +141,7 @@ class MemoryCompactor:
         semantic_memory: SemanticMemory,
         workspace_root: str = "",
     ) -> dict[str, Any]:
-        """一次完整的压缩 + 沉淀流程。
-
-        先压缩 working memory（去重），再尝试沉淀到 semantic memory。
-        """
+        """Compact working memory, then promote eligible file summaries."""
         compact_report = self.compact_working_memory(working_memory)
         promote_report = self.promote_to_semantic(
             working_memory, semantic_memory, workspace_root
@@ -178,13 +153,38 @@ class MemoryCompactor:
 
     @staticmethod
     def _extract_path_from_observation(obs: Any) -> str:
-        """从观察记录中提取文件路径（委托到 memory_utils）。"""
+        """Extract a repo path from an observation using the shared utility."""
         return extract_path_from_observation(obs)
 
+    def apply_write_intents(
+        self,
+        semantic_memory: SemanticMemory,
+        decision: dict[str, Any],
+    ) -> dict[str, Any]:
+        """Apply semantic side effects described by a write decision.
 
-# ---------------------------------------------------------------------------
-# 两段式压缩（Phase 2）
-# ---------------------------------------------------------------------------
+        This is intentionally narrow: tool execution can invalidate stale
+        semantic records immediately, while semantic promotion remains reserved
+        for final compaction.
+        """
+        invalidated_count = 0
+        invalidated_paths: list[str] = []
+
+        for path in decision.get("invalidate_paths", []) or []:
+            path = str(path).strip()
+            if not path:
+                continue
+            absolute_path = str(decision.get("absolute_path", "")).strip()
+            new_version = file_fingerprint(absolute_path or path)
+            count = semantic_memory.invalidate_by_file(path, new_version=new_version or None)
+            invalidated_count += count
+            if count:
+                invalidated_paths.append(path)
+
+        return {
+            "semantic_invalidated_count": invalidated_count,
+            "semantic_invalidated_paths": invalidated_paths,
+        }
 
     def pre_compaction_flush(
         self,
@@ -192,15 +192,7 @@ class MemoryCompactor:
         run_id: str,
         original_request: str,
     ) -> CompactionSchema:
-        """Phase 1：快照 working memory 高价值状态。
-
-        纯函数，不修改 wm。生成一个 CompactionSchema，
-        其中包含 original_request / final_goal / completed_work /
-        remaining_tasks 等关键骨架。
-
-        Returns:
-            CompactionSchema 实例。
-        """
+        """Convert working memory into a structured compaction schema."""
         return build_schema_from_working_memory(wm, run_id, original_request)
 
     def structured_compaction(
@@ -209,20 +201,7 @@ class MemoryCompactor:
         semantic_memory: SemanticMemory,
         workspace_root: str = "",
     ) -> dict[str, Any]:
-        """Phase 2：将 CompactionSchema 按固定 schema 写入 semantic memory。
-
-        每个 schema 字段都按 category 生成独立的 SemanticRecord：
-          - run_goal
-          - completed_work（每条一个）
-          - remaining_tasks（每条一个）
-          - run_summary
-
-        写入前做相似度去重：如果已有记录的内容与待写入内容高度相似
-        （前缀 token overlap >= 80%），跳过写入。
-
-        Returns:
-            写入报告，包含 written_count / skipped_count / written_items / deduped_count。
-        """
+        """Write structured run-level records from a compaction schema."""
         if not schema.is_meaningful():
             return {
                 "written_count": 0,
@@ -238,18 +217,15 @@ class MemoryCompactor:
         written_items: list[str] = []
 
         for record_id, category, content, tags in records:
-            # 跳过空内容
             if not content.strip():
                 skipped_count += 1
                 continue
 
-            # 检查是否已存在且内容相同（精确匹配）
             existing = semantic_memory.get(record_id)
             if existing and existing.content == content:
                 skipped_count += 1
                 continue
 
-            # 相似度去重：同 category 的现有记录中，如果存在高度相似的则跳过
             if self._is_near_duplicate(content, category, semantic_memory):
                 deduped_count += 1
                 continue
@@ -281,16 +257,11 @@ class MemoryCompactor:
         semantic_memory: SemanticMemory,
         threshold: float = 0.8,
     ) -> bool:
-        """检查同 category 中是否存在高度相似的记录。
-
-        使用 token overlap 作为相似度指标。
-        阈值 0.8 意味着 80% 的 token 相同就视为重复。
-        """
+        """Detect near duplicates in one semantic category by token overlap."""
         content_tokens = set(content.lower().split())
         if not content_tokens:
             return False
 
-        # 搜索同 category 的现有记录
         existing_records = semantic_memory.search(category=category, top_k=20)
         for record in existing_records:
             record_tokens = set(record.content.lower().split())
@@ -309,34 +280,18 @@ class MemoryCompactor:
         original_request: str,
         workspace_root: str = "",
     ) -> dict[str, Any]:
-        """完整两段式压缩流程。
+        """Run the full structured compaction pipeline.
 
-        顺序执行：
-          1. pre_compaction_flush — 快照高价值状态
-          2. compact_working_memory — 去重压缩 working memory
-          3. promote_to_semantic — 沉淀文件摘要到 semantic memory
-          4. structured_compaction — 按 schema 写入结构化总结
+        Steps:
 
-        比 compact_and_promote() 多执行第 1 步和第 4 步，
-        保证长任务跨轮次时上下文不漂移。
-
-        Returns:
-            包含四个阶段报告的合并 dict：
-              flush: CompactionSchema (as dict)
-              compaction: compact_working_memory report
-              promotion: promote_to_semantic report
-              structured: structured_compaction report
+        1. Build a structured schema from working memory.
+        2. De-duplicate working memory.
+        3. Promote stable file summaries.
+        4. Write structured run summary records.
         """
-        # Phase 1: 快照
         schema = self.pre_compaction_flush(wm, run_id, original_request)
-
-        # Phase 2: 去重压缩
         compact_report = self.compact_working_memory(wm)
-
-        # Phase 3: 沉淀文件摘要
         promote_report = self.promote_to_semantic(wm, sm, workspace_root)
-
-        # Phase 4: 结构化沉淀
         structured_report = self.structured_compaction(schema, sm, workspace_root)
 
         return {
@@ -346,26 +301,16 @@ class MemoryCompactor:
             "structured": structured_report,
         }
 
-    # -------------------------------------------------------------------------
-    # Phase 2: Procedure Detection
-    # -------------------------------------------------------------------------
-
-    def __init__(self):
-        self._procedure_detector = ProcedureCandidateDetector()
-
     def detect_procedure_candidates(
         self,
         wm: WorkingMemory,
         run_id: str,
         registry: Any = None,
     ) -> list:
-        """检测 working memory 中的程序性经验候选。
+        """Detect reusable procedure candidates from working memory.
 
-        参数：
-          wm       — WorkingMemory 实例
-          run_id   — 当前 run ID
-          registry — SkillCandidateRegistry（如果提供，自动注册检测到的候选，
-                     并传递 trigger_conditions / anti_patterns / applicable_repo_paths）
+        When a registry is provided, candidates are persisted with their trigger
+        conditions, anti-patterns, procedure steps, and applicable repo paths.
         """
         candidates = self._procedure_detector.detect_from_working_memory(wm, run_id)
         if registry and candidates:

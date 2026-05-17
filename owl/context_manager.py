@@ -7,7 +7,6 @@ from . import memory as memorylib
 from .context_budget import (
     DEFAULT_REDUCTION_ORDER,
     DEFAULT_SECTION_BUDGETS,
-    DEFAULT_SECTION_FLOORS,
     DEFAULT_TOTAL_BUDGET,
     _tail_clip,
 )
@@ -125,16 +124,20 @@ class ContextManager:
                 new_recall_results = []
 
         selected_notes = []
+        legacy_recall_used = False
         can_use_legacy_recall = (
             memory_enabled
             and relevant_memory_enabled
             and hasattr(self.agent, "memory")
             and hasattr(self.agent.memory, "retrieval_candidates")
         )
-        if can_use_legacy_recall:
+        new_recall_is_working_only = bool(new_recall_results) and all(
+            getattr(result, "source", "") == "working" for result in new_recall_results
+        )
+        if can_use_legacy_recall and (not new_recall_results or new_recall_is_working_only):
             selected_notes = self.agent.memory.retrieval_candidates(user_message, limit=RELEVANT_MEMORY_LIMIT)
-            if selected_notes and all(getattr(result, "source", "") == "working" for result in new_recall_results):
-                # Do not let a trivial working-memory echo suppress legacy episodic recall.
+            legacy_recall_used = bool(selected_notes)
+            if legacy_recall_used and new_recall_is_working_only:
                 new_recall_results = []
 
         if not context_reduction_enabled:
@@ -151,6 +154,7 @@ class ContextManager:
                 reduction_log=[],
                 selected_notes=selected_notes,
                 new_recall_results=new_recall_results,
+                legacy_recall_used=legacy_recall_used,
                 user_message=user_message,
                 section_texts=section_texts,
             )
@@ -205,6 +209,7 @@ class ContextManager:
             reduction_log=reduction_log,
             selected_notes=selected_notes,
             new_recall_results=new_recall_results,
+            legacy_recall_used=legacy_recall_used,
             user_message=user_message,
             section_texts=section_texts,
         )
@@ -529,7 +534,18 @@ class ContextManager:
             ]
         ).strip()
 
-    def _metadata(self, prompt, rendered, budgets, reduction_log, selected_notes, new_recall_results, user_message, section_texts):
+    def _metadata(
+        self,
+        prompt,
+        rendered,
+        budgets,
+        reduction_log,
+        selected_notes,
+        new_recall_results,
+        legacy_recall_used,
+        user_message,
+        section_texts,
+    ):
         section_metadata = {}
         for section in SECTION_ORDER[:-1]:
             section_metadata[section] = {
@@ -561,6 +577,9 @@ class ContextManager:
                 "limit": RELEVANT_MEMORY_LIMIT,
                 "selected_count": len(selected_notes),
                 "selected_notes": [note["text"] for note in selected_notes],
+                "legacy_recall_used": bool(legacy_recall_used),
+                "new_recall_used": bool(new_recall_results),
+                "recall_source": "new" if new_recall_results else ("legacy" if legacy_recall_used else "none"),
                 "raw_chars": rendered["relevant_memory"].raw_chars,
                 "rendered_chars": rendered["relevant_memory"].rendered_chars,
                 "rendered_notes": list(rendered["relevant_memory"].details.get("rendered_notes", [])),

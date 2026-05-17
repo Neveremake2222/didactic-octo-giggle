@@ -1,8 +1,8 @@
 """Custom model clients for failure-mode benchmark tasks.
 
 These model clients deliberately trigger abnormal stop reasons:
-- RetryTriggeringModelClient: Returns malformed outputs to trigger retry_limit_reached
-- ErrorInjectingModelClient: Raises RuntimeError to trigger model_error
+- `RetryTriggeringModelClient` returns malformed outputs until retry limits hit.
+- `ErrorInjectingModelClient` raises a model error from `complete()`.
 """
 
 from __future__ import annotations
@@ -11,25 +11,21 @@ from .models import FakeModelClient
 
 
 class RetryTriggeringModelClient(FakeModelClient):
-    """Returns malformed outputs that trigger retry_limit_reached.
+    """Return malformed outputs that trigger retry_limit_reached.
 
-    The Owl runtime parse() method treats responses as follows:
-    - Contains <tool> with malformed JSON → retry
-    - Contains <final></final> (empty) → retry
-    - Empty string → retry
-    - Any other non-empty text → treated as final answer (NOT retry)
+    The Owl runtime parser treats these responses as retryable:
 
-    FakeModelClient returns "<final>Done.</final>" when outputs list is empty,
-    which is a valid final answer. We must provide enough entries so that
-    max_attempts (max_steps * 3, here ~30) is reached before exhaustion.
+    - `<tool>` blocks with malformed JSON
+    - empty `<final></final>` blocks
+    - empty strings
 
-    max_steps = 10 → max_attempts = 30. Provide 31+ entries.
+    `FakeModelClient` falls back to a valid final answer when its output list is
+    exhausted, so this client provides more outputs than the expected retry
+    limit for failure-mode benchmarks.
     """
 
     def __init__(self):
-        # Build a list of 32 retry-triggering responses (more than max_attempts)
         retry_responses = []
-        # Mix of malformed JSON-in-tool, empty final, and empty strings
         templates = [
             '<tool>{bad json here</tool>',
             '<tool></tool>',
@@ -46,10 +42,7 @@ class RetryTriggeringModelClient(FakeModelClient):
 
 
 class ErrorInjectingModelClient:
-    """Raises RuntimeError on complete() to simulate a model backend failure.
-
-    The runtime catches this and sets stop_reason = model_error.
-    """
+    """Raise `RuntimeError` from `complete()` to simulate backend failure."""
 
     def __init__(self):
         self.outputs: list[str] = []

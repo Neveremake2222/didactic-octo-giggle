@@ -1,5 +1,6 @@
 from owl import FakeModelClient, MiniAgent, SessionStore, WorkspaceContext
 from owl.context_manager import ContextManager
+from owl.memory_retriever import RecallResult
 
 
 def build_workspace(tmp_path):
@@ -200,3 +201,89 @@ def test_context_manager_summarizes_older_tool_output_into_one_line(tmp_path):
     assert "FAIL test_four" not in transcript
     assert metadata["history"]["summarized_tool_count"] == 1
     assert metadata["history"]["reused_file_summary_count"] == 0
+
+
+def test_context_manager_uses_new_recall_without_mixing_legacy_notes(tmp_path):
+    agent = build_agent(tmp_path, [])
+    agent.memory.append_note("legacy deploy note", tags=("deploy",), created_at="2026-04-07T10:00:00+00:00")
+
+    class StubRetriever:
+        def recall_for_task(self, **kwargs):
+            return [
+                RecallResult(
+                    source="semantic",
+                    content="semantic deploy workflow",
+                    repo_path="README.md",
+                    relevance_score=0.9,
+                    metadata={"record_id": "rec-1", "file_path": "README.md"},
+                )
+            ]
+
+    manager = ContextManager(
+        agent,
+        memory_retriever=StubRetriever(),
+        working_memory=agent.working_memory,
+        semantic_memory=agent.semantic_memory,
+    )
+
+    prompt, metadata = manager.build("deploy")
+
+    assert "semantic deploy workflow" in prompt
+    assert "legacy deploy note" not in prompt
+    assert metadata["relevant_memory"]["recall_source"] == "new"
+    assert metadata["relevant_memory"]["new_recall_used"] is True
+    assert metadata["relevant_memory"]["legacy_recall_used"] is False
+    assert metadata["relevant_memory"]["items"][0]["record_id"] == "rec-1"
+
+
+def test_context_manager_falls_back_to_legacy_when_new_recall_is_empty(tmp_path):
+    agent = build_agent(tmp_path, [])
+    agent.memory.append_note("legacy deploy note", tags=("deploy",), created_at="2026-04-07T10:00:00+00:00")
+
+    class EmptyRetriever:
+        def recall_for_task(self, **kwargs):
+            return []
+
+    manager = ContextManager(
+        agent,
+        memory_retriever=EmptyRetriever(),
+        working_memory=agent.working_memory,
+        semantic_memory=agent.semantic_memory,
+    )
+
+    prompt, metadata = manager.build("deploy")
+
+    assert "legacy deploy note" in prompt
+    assert metadata["relevant_memory"]["recall_source"] == "legacy"
+    assert metadata["relevant_memory"]["new_recall_used"] is False
+    assert metadata["relevant_memory"]["legacy_recall_used"] is True
+
+
+def test_context_manager_allows_legacy_fallback_for_working_only_recall(tmp_path):
+    agent = build_agent(tmp_path, [])
+    agent.memory.append_note("legacy deploy note", tags=("deploy",), created_at="2026-04-07T10:00:00+00:00")
+
+    class WorkingOnlyRetriever:
+        def recall_for_task(self, **kwargs):
+            return [
+                RecallResult(
+                    source="working",
+                    content="deploy",
+                    relevance_score=1.0,
+                    metadata={"kind": "task_summary"},
+                )
+            ]
+
+    manager = ContextManager(
+        agent,
+        memory_retriever=WorkingOnlyRetriever(),
+        working_memory=agent.working_memory,
+        semantic_memory=agent.semantic_memory,
+    )
+
+    prompt, metadata = manager.build("deploy")
+
+    assert "legacy deploy note" in prompt
+    assert metadata["relevant_memory"]["recall_source"] == "legacy"
+    assert metadata["relevant_memory"]["new_recall_used"] is False
+    assert metadata["relevant_memory"]["legacy_recall_used"] is True

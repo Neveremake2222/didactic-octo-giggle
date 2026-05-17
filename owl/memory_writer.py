@@ -1,42 +1,27 @@
-"""统一记忆写入策略。
+"""Memory write policy for tool results.
 
-memory_writer 的职责是"写入决策"，而不是直接裸写：
-  - 这条信息值得写吗？
-  - 写到哪一层（working / semantic）？
-  - 写成原文、摘要还是结构化条目？
-  - 是否需要覆盖旧版本？
-
-所有记忆写入都应该经过这个模块的审批。
+`MemoryWriter` decides whether a tool result should become a working-memory
+observation, a file modification intent, or be skipped. Runtime code should
+write tool results to `WorkingMemory`; durable semantic writes are handled by
+`MemoryCompactor`.
 """
 
 from __future__ import annotations
 
-import hashlib
-from pathlib import Path
 from typing import Any
 
+from .memory_utils import file_fingerprint, summarize_result
 from .semantic_memory import SemanticMemory, SemanticRecord
 from .working_memory import WorkingMemory
-from .memory_utils import summarize_result, file_fingerprint
 
 
-# 写入目标
 WRITE_TARGET_WORKING = "working"
 WRITE_TARGET_SEMANTIC = "semantic"
 WRITE_TARGET_SKIP = "skip"
 
 
 class MemoryWriter:
-    """统一记忆写入策略。
-
-    使用方式：
-      writer = MemoryWriter()
-      decision = writer.should_write(tool_name, args, result)
-      if decision["target"] == WRITE_TARGET_WORKING:
-          writer.write_working(working_memory, decision)
-      elif decision["target"] == WRITE_TARGET_SEMANTIC:
-          writer.write_semantic(semantic_memory, decision)
-    """
+    """Classify tool results and write the working-memory side effects."""
 
     def should_write(
         self,
@@ -45,18 +30,10 @@ class MemoryWriter:
         result: str,
         context: dict[str, Any] | None = None,
     ) -> dict[str, Any]:
-        """判断一条信息是否值得写入记忆。
-
-        返回决策字典：
-          - target: "working" / "semantic" / "skip"
-          - reason: 为什么这样决定
-          - content: 待写入的内容
-          - category: 写入类别
-        """
+        """Return a write decision for one tool result."""
         context = context or {}
         path = args.get("path", "")
 
-        # 工具结果不写：list_files, search（信息量大且时效性短）
         if tool_name in ("list_files", "search"):
             return {
                 "target": WRITE_TARGET_WORKING,
@@ -67,12 +44,10 @@ class MemoryWriter:
                 "args": args,
             }
 
-        # 文件操作写入 working memory
         if tool_name in ("read_file", "write_file", "patch_file"):
             if not path:
                 return {"target": WRITE_TARGET_SKIP, "reason": "no path", "content": "", "category": ""}
 
-            # 读文件 → working + 可能 semantic
             if tool_name == "read_file":
                 summary = self._summarize_result(result, limit=180)
                 return {
@@ -87,7 +62,6 @@ class MemoryWriter:
                     "promote_to_semantic": True,
                 }
 
-            # 写文件/patch → working（使旧摘要失效）
             return {
                 "target": WRITE_TARGET_WORKING,
                 "reason": "file modified, invalidate old summaries",
@@ -101,7 +75,6 @@ class MemoryWriter:
                 "invalidate_paths": [path],
             }
 
-        # shell 执行写入 working memory（作为观察）
         if tool_name == "run_shell":
             return {
                 "target": WRITE_TARGET_WORKING,
@@ -112,7 +85,6 @@ class MemoryWriter:
                 "args": args,
             }
 
-        # delegate 结果写入 working memory
         if tool_name == "delegate":
             return {
                 "target": WRITE_TARGET_WORKING,
@@ -126,14 +98,13 @@ class MemoryWriter:
         return {"target": WRITE_TARGET_SKIP, "reason": "unknown tool", "content": "", "category": ""}
 
     def write_working(self, wm: WorkingMemory, decision: dict[str, Any]) -> None:
-        """根据决策写入 working memory。"""
+        """Apply the working-memory side of a write decision."""
         category = decision.get("category", "")
         content = decision.get("content", "")
         tool_name = decision.get("tool_name", "")
         path = decision.get("path", "")
         absolute_path = decision.get("absolute_path", "")
 
-        # Phase 2: 计算文件指纹
         file_fingerprint_val = ""
         if path and category in ("file_summary", "file_modified"):
             file_fingerprint_val = file_fingerprint(absolute_path or path)
@@ -141,22 +112,35 @@ class MemoryWriter:
         if category == "observation":
             wm.add_observation(tool_name, content)
         elif category == "file_summary":
-            wm.add_observation(tool_name, f"read {path}: {content}",
-                               file_path=path, file_fingerprint=file_fingerprint_val)
+            wm.add_observation(
+                tool_name,
+                f"read {path}: {content}",
+                file_path=path,
+                file_fingerprint=file_fingerprint_val,
+            )
             if path:
                 wm.add_candidate(path)
         elif category == "file_modified":
             if path:
+                wm.add_observation(
+                    tool_name,
+                    f"modified {path}",
+                    file_path=path,
+                    file_fingerprint=file_fingerprint_val,
+                )
                 wm.add_candidate(path)
 
     def write_semantic(self, sm: SemanticMemory, decision: dict[str, Any]) -> None:
-        """根据决策写入 semantic memory。"""
+        """Compatibility helper for older tests and integrations.
+
+        Runtime code should not call this during tool execution. New semantic
+        promotion and invalidation paths belong in `MemoryCompactor`.
+        """
         category = decision.get("category", "")
         content = decision.get("content", "")
         path = decision.get("path", "")
         absolute_path = decision.get("absolute_path", "")
 
-        # 文件被修改时，即使 content 为空，也要删除旧摘要
         if category == "file_modified" and path:
             record_id = SemanticMemory.make_record_id("file_summary", path)
             existing = sm.get(record_id)
@@ -170,7 +154,6 @@ class MemoryWriter:
         record_id = SemanticMemory.make_record_id("file_summary", path)
 
         if category == "file_summary" and decision.get("promote_to_semantic"):
-            # Phase 2: 填充 freshness_hash 和 file_version
             fp = file_fingerprint(absolute_path or path)
             sm.put(SemanticRecord(
                 record_id=record_id,
@@ -186,5 +169,5 @@ class MemoryWriter:
             ))
 
     def _summarize_result(self, result: str, limit: int = 180) -> str:
-        """对工具结果生成简短摘要（委托到 memory_utils）。"""
+        """Summarize a tool result for memory storage."""
         return summarize_result(result, limit)

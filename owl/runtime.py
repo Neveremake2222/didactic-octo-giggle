@@ -18,6 +18,7 @@ from pathlib import Path
 from . import memory as memorylib
 from .context_manager import ContextManager
 from .run_store import RunStore
+from .task_graph_state import TaskGraphState
 from .task_state import TaskState
 from . import tools as toolkit
 from .workspace import MAX_HISTORY, WorkspaceContext, clip, now
@@ -33,17 +34,14 @@ from .memory_retriever import MemoryRetriever
 from .memory_compactor import MemoryCompactor
 
 # 评估与观测模块
-from .trace_schema import TraceEvent, parse_trace_file
+from .trace_schema import TraceEvent
 from .trace_schema import (
     EVENT_CONTEXT_SOURCES_DISCOVERED,
     EVENT_PRECOMPACTION_FLUSHED,
     EVENT_CONTEXT_COMPACTED,
     EVENT_COMPACTION_PROMOTED,
     EVENT_MEMORY_SKIPPED_STALE,
-    EVENT_MEMORY_RANKED,
-    EVENT_MEMORY_DEDUPLICATED,
     EVENT_PROCEDURE_CANDIDATES_DETECTED,
-    EVENT_SKILL_REGISTRY_PERSISTED,
     EVENT_VERIFICATION_PASSED,
     EVENT_VERIFICATION_FAILED,
 )
@@ -53,17 +51,13 @@ from .trace_schema import (
     EVENT_DECISION_GATE_APPROVED,
     EVENT_DECISION_GATE_REJECTED,
     EVENT_DECISION_GATE_MODIFIED,
-    EVENT_TOOL_RETRY_SUCCEEDED,
-    EVENT_TOOL_RETRY_FAILED,
-    EVENT_TOOL_ALTERNATIVE_TRIED,
 )
 
 # P0 执行闭环模块
 from .planner import ExecutionPlan, generate_plan
 from .verifier import VerificationGate
-from .decision_gate import check_decision_gate, DECISION_GATE_MODE_AUTO, DECISION_GATE_MODE_ASK, DECISION_GATE_MODE_ALWAYS
+from .decision_gate import check_decision_gate
 from .error_recovery import retry_tool_execution, try_alternative_tool, retry_model_call
-from . import report_builder as _report_builder
 from .failure_analyzer import classify_failure
 
 # Phase 2 上下文发现模块
@@ -190,6 +184,7 @@ class Owl:
 
         self.session_path = self.session_store.save(self.session)
         self.current_task_state = None
+        self.current_task_graph_state: TaskGraphState | None = None
         self.current_run_dir = None
         self.last_prompt_metadata = {}
         self.last_completion_metadata = {}
@@ -302,6 +297,8 @@ class Owl:
             compaction_report = self._memory_compactor.compact_and_promote(
                 self.working_memory, self.semantic_memory, str(self.root)
             )
+        if self.current_task_graph_state:
+            self.current_task_graph_state.set_memory_compaction_report(compaction_report)
 
         self._emit_compaction_trace(task_state, compaction_report)
 
@@ -309,6 +306,8 @@ class Owl:
         if self.feature_flags.get("procedure_detection"):
             self._detect_and_emit_procedure_candidates(task_state)
 
+        if self.current_task_graph_state:
+            self.current_task_graph_state.set_final_answer(final, stopped=False)
         self.run_store.write_task_state(task_state)
         self.emit_trace(
             task_state,
@@ -359,6 +358,8 @@ class Owl:
             compaction_report = self._memory_compactor.compact_and_promote(
                 self.working_memory, self.semantic_memory, str(self.root)
             )
+        if self.current_task_graph_state:
+            self.current_task_graph_state.set_memory_compaction_report(compaction_report)
 
         self._emit_compaction_trace(task_state, compaction_report, phase="compaction_stopped")
 
@@ -367,6 +368,8 @@ class Owl:
             self._detect_and_emit_procedure_candidates(task_state)
 
         self.record({"role": "assistant", "content": final, "created_at": now()})
+        if self.current_task_graph_state:
+            self.current_task_graph_state.set_final_answer(final, stopped=True)
         self.run_store.write_task_state(task_state)
         self.emit_trace(
             task_state,
@@ -750,15 +753,6 @@ class Owl:
             return ""
         return self._file_fingerprint_tracker.record(absolute_path, content, alias=path)
 
-    def _invalidate_semantic_for_modified_file(self, name, args):
-        if name not in {"write_file", "patch_file"}:
-            return 0
-        path = str(args.get("path", "")).strip()
-        if not path:
-            return 0
-        new_version = self._record_tool_file_fingerprint(name, args)
-        return self.semantic_memory.invalidate_by_file(path, new_version=new_version or None)
-
     def emit_trace(self, task_state, event, payload=None):
         payload = self.redact_artifact(payload or {})
         payload["event"] = event
@@ -830,6 +824,11 @@ class Owl:
 
         task_state = TaskState.create(run_id=self.new_run_id(), task_id=self.new_task_id(), user_request=user_message)
         self.current_task_state = task_state
+        self.current_task_graph_state = TaskGraphState(
+            run_id=task_state.run_id,
+            task_id=task_state.task_id,
+            user_request=user_message,
+        )
         self.current_run_dir = self.run_store.start_run(task_state)
 
         # --- 新模块：创建 ExecutionState ---
@@ -861,6 +860,8 @@ class Owl:
         execution_plan: ExecutionPlan | None = None
         if self.feature_flags.get("planning"):
             execution_plan = self._run_planning_phase(user_message, task_state, execution_state)
+            if self.current_task_graph_state:
+                self.current_task_graph_state.set_execution_plan(execution_plan)
             if execution_plan.no_action_needed:
                 final = execution_plan.direct_answer
                 self.record({"role": "assistant", "content": final, "created_at": now()})
@@ -922,6 +923,8 @@ class Owl:
             )
 
             prompt, prompt_metadata = self._build_prompt_and_metadata(user_message)
+            if self.current_task_graph_state:
+                self.current_task_graph_state.record_context(prompt_metadata)
 
             # P0: 注入执行计划到 prompt
             if execution_plan:
@@ -1085,11 +1088,14 @@ class Owl:
                 # 新模块：更新 working_memory 和 semantic_memory
                 memory_args = self._normalized_tool_args(args)
                 fingerprint = ""
-                if name == "read_file":
+                if name in {"read_file", "write_file", "patch_file"}:
                     fingerprint = self._record_tool_file_fingerprint(name, memory_args)
                 write_decision = self._memory_writer.should_write(name, memory_args, result)
                 self._memory_writer.write_working(self.working_memory, write_decision)
-                invalidated_count = self._invalidate_semantic_for_modified_file(name, memory_args)
+                semantic_intent_report = self._memory_compactor.apply_write_intents(
+                    self.semantic_memory, write_decision
+                )
+                invalidated_count = semantic_intent_report.get("semantic_invalidated_count", 0)
                 if fingerprint:
                     self.emit_trace(
                         task_state,
@@ -1100,7 +1106,12 @@ class Owl:
                     self.emit_trace(
                         task_state,
                         "semantic_invalidated_by_file",
-                        {"tool": name, "path": memory_args.get("path", ""), "invalidated_count": invalidated_count},
+                        {
+                            "tool": name,
+                            "path": memory_args.get("path", ""),
+                            "invalidated_count": invalidated_count,
+                            "source": "memory_compactor",
+                        },
                     )
                 self.emit_trace(
                     task_state,
@@ -1115,6 +1126,14 @@ class Owl:
                         "semantic_invalidated": invalidated_count,
                     },
                 )
+                if self.current_task_graph_state:
+                    self.current_task_graph_state.record_tool_observation(
+                        name,
+                        memory_args,
+                        result,
+                        step=tool_steps,
+                        status=str((self._last_tool_result_metadata or {}).get("tool_status", "")),
+                    )
 
                 # Phase 3: 检查 working memory 中的陈旧 observations
                 if self.feature_flags.get("stale_guard") and self._stale_observation_guard:
@@ -1150,6 +1169,12 @@ class Owl:
                         "tool": name, "progress": v_result.progress,
                         "notes": v_result.notes,
                     })
+                    if self.current_task_graph_state:
+                        self.current_task_graph_state.record_verification_result(
+                            v_result,
+                            tool=name,
+                            is_final=False,
+                        )
                     self.emit_trace(
                         task_state,
                         EVENT_VERIFICATION_PASSED if v_result.passed else EVENT_VERIFICATION_FAILED,
@@ -1199,6 +1224,11 @@ class Owl:
                     "is_final": True, "progress": v_result.progress,
                     "notes": v_result.notes,
                 })
+                if self.current_task_graph_state:
+                    self.current_task_graph_state.record_verification_result(
+                        v_result,
+                        is_final=True,
+                    )
                 self.emit_trace(
                     task_state,
                     EVENT_VERIFICATION_PASSED if v_result.passed else EVENT_VERIFICATION_FAILED,
@@ -1348,6 +1378,8 @@ class Owl:
         # 新模块：加入 execution_state 和 working_memory
         if self.current_execution_state:
             report["execution_state"] = self.current_execution_state.to_dict()
+        if self.current_task_graph_state:
+            report["task_graph_state"] = self.current_task_graph_state.to_dict()
         if hasattr(self, "working_memory"):
             report["working_memory"] = self.working_memory.to_dict()
         if hasattr(self, "semantic_memory"):

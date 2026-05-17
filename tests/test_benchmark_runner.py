@@ -1,9 +1,6 @@
 """benchmark_runner 测试。"""
 
 import json
-import pytest
-from pathlib import Path
-
 from owl.benchmark_runner import BenchmarkResult, BenchmarkRunner, ComparisonReport
 
 
@@ -94,6 +91,31 @@ class TestComparisonReport:
         cp = _write_artifact(tmp_path, "candidate.json", 1.0, c_rows)
         report = ComparisonReport(BenchmarkResult(bp), BenchmarkResult(cp)).run()
         assert len(report["task_deltas"]) == 2
+
+    def test_missing_task_ids_are_reported_as_deltas(self, tmp_path):
+        b_rows = _make_rows([
+            ("baseline_only", True, "docs"),
+            ("shared", False, "edit"),
+        ])
+        c_rows = _make_rows([
+            ("candidate_only", True, "docs"),
+            ("shared", True, "edit"),
+        ])
+        bp = _write_artifact(tmp_path, "baseline.json", 0.5, b_rows)
+        cp = _write_artifact(tmp_path, "candidate.json", 1.0, c_rows)
+
+        report = ComparisonReport(BenchmarkResult(bp), BenchmarkResult(cp)).run()
+        deltas = {row["task_id"]: row for row in report["task_deltas"]}
+
+        assert sorted(deltas) == ["baseline_only", "candidate_only", "shared"]
+        assert deltas["baseline_only"]["baseline_passed"] is True
+        assert deltas["baseline_only"]["candidate_passed"] is False
+        assert deltas["baseline_only"]["delta"] == -1
+        assert deltas["candidate_only"]["baseline_passed"] is False
+        assert deltas["candidate_only"]["candidate_passed"] is True
+        assert deltas["candidate_only"]["delta"] == 1
+        assert report["regression_count"] == 1
+        assert report["improvement_count"] == 2
 
 
 class TestBenchmarkRunner:

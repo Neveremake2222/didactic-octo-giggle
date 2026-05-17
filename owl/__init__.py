@@ -15,5 +15,19 @@ __all__ = [
     "OllamaModelClient",
     "OpenAICompatibleModelClient",
     "SessionStore",
+    "SkillMemoryService",
+    "TaskGraphState",
     "WorkspaceContext",
 ]
+
+
+def __getattr__(name):
+    if name == "SkillMemoryService":
+        from .skill_memory_service import SkillMemoryService
+
+        return SkillMemoryService
+    if name == "TaskGraphState":
+        from .task_graph_state import TaskGraphState
+
+        return TaskGraphState
+    raise AttributeError(name)

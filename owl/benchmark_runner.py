@@ -1,7 +1,8 @@
-"""Benchmark 批量运行与跨版本对比。
+"""Helpers for running benchmarks and comparing benchmark artifacts.
 
-BenchmarkRunner 负责批量跑 benchmark，并输出跨版本对照结果。
-compare() 可以对比 baseline 和 candidate 两轮 benchmark 结果，解释"为什么变好或变差"。
+`BenchmarkRunner` delegates execution to the evaluator module. `compare()`
+loads two benchmark artifacts and reports pass-rate deltas, per-category
+changes, regressions, and improvements.
 """
 
 from __future__ import annotations
@@ -12,7 +13,7 @@ from typing import Any
 
 
 class BenchmarkResult:
-    """单次 benchmark 运行结果。"""
+    """Lazy wrapper around a benchmark artifact JSON file."""
 
     def __init__(self, artifact_path: str | Path):
         self.artifact_path = Path(artifact_path)
@@ -62,7 +63,7 @@ class BenchmarkResult:
 
 
 class ComparisonReport:
-    """baseline vs candidate 对比报告。"""
+    """Compare baseline and candidate benchmark results."""
 
     def __init__(self, baseline: BenchmarkResult, candidate: BenchmarkResult):
         self.baseline = baseline
@@ -77,10 +78,8 @@ class ComparisonReport:
         b_row_map = {r["id"]: r for r in b_rows}
         c_row_map = {r["id"]: r for r in c_rows}
 
-        # 总体指标
         overall_delta = c_summary.get("pass_rate", 0.0) - b_summary.get("pass_rate", 0.0)
 
-        # 按类别对比
         b_cat = self.baseline.per_category_pass_rate()
         c_cat = self.candidate.per_category_pass_rate()
         all_cats = set(b_cat) | set(c_cat)
@@ -93,7 +92,6 @@ class ComparisonReport:
                 "delta": delta,
             }
 
-        # 逐 task 对比
         task_deltas: list[dict[str, Any]] = []
         for task_id in sorted(set(list(b_row_map) + list(c_row_map))):
             b_row = b_row_map.get(task_id, {})
@@ -118,11 +116,19 @@ class ComparisonReport:
             "regression_count": len(regressions),
             "improvement_count": len(improvements),
             "regressions": [
-                {"task_id": t["task_id"], "baseline_passed": t["baseline_passed"], "candidate_passed": t["candidate_passed"]}
+                {
+                    "task_id": t["task_id"],
+                    "baseline_passed": t["baseline_passed"],
+                    "candidate_passed": t["candidate_passed"],
+                }
                 for t in regressions
             ],
             "improvements": [
-                {"task_id": t["task_id"], "baseline_passed": t["baseline_passed"], "candidate_passed": t["candidate_passed"]}
+                {
+                    "task_id": t["task_id"],
+                    "baseline_passed": t["baseline_passed"],
+                    "candidate_passed": t["candidate_passed"],
+                }
                 for t in improvements
             ],
             "task_deltas": task_deltas,
@@ -130,7 +136,7 @@ class ComparisonReport:
 
 
 class BenchmarkRunner:
-    """Benchmark 批量运行器。"""
+    """Run fixed benchmarks and compare saved benchmark artifacts."""
 
     def __init__(self, evaluator_module=None):
         self._evaluator_module = evaluator_module
@@ -141,7 +147,7 @@ class BenchmarkRunner:
         artifact_path: str | Path,
         workspace_root: str | Path | None = None,
     ) -> dict[str, Any]:
-        """运行一次 benchmark，返回 artifact 并写入文件。"""
+        """Run a benchmark and write the evaluator artifact."""
         if self._evaluator_module is None:
             from owl import evaluator as _ev
             self._evaluator_module = _ev
@@ -158,7 +164,7 @@ class BenchmarkRunner:
         baseline_path: str | Path,
         candidate_path: str | Path,
     ) -> dict[str, Any]:
-        """对比两个 benchmark artifact，输出变化摘要。"""
+        """Compare two saved benchmark artifacts."""
         baseline = BenchmarkResult(baseline_path)
         candidate = BenchmarkResult(candidate_path)
         report = ComparisonReport(baseline, candidate)

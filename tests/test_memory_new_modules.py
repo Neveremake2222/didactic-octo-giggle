@@ -1,13 +1,12 @@
 """working_memory, semantic_memory, memory_writer, memory_retriever, memory_compactor 测试。"""
 
-import pytest
 
-from owl.working_memory import WorkingMemory, Observation
+from owl.working_memory import WorkingMemory
 from owl.semantic_memory import SemanticMemory, SemanticRecord
-from owl.memory_writer import MemoryWriter, WRITE_TARGET_WORKING, WRITE_TARGET_SEMANTIC, WRITE_TARGET_SKIP
+from owl.memory_writer import MemoryWriter, WRITE_TARGET_WORKING, WRITE_TARGET_SKIP
 from owl.memory_retriever import MemoryRetriever, RecallResult
 from owl.memory_compactor import MemoryCompactor
-from owl.compaction_schema import CompactionSchema, build_schema_from_working_memory, schema_to_semantic_records
+from owl.compaction_schema import build_schema_from_working_memory, schema_to_semantic_records
 
 
 # === WorkingMemory ===
@@ -195,6 +194,16 @@ class TestMemoryWriter:
         assert len(wm.recent_observations) == 1
         assert "README.md" in wm.candidate_targets
 
+    def test_write_working_records_file_modified_intent(self):
+        writer = MemoryWriter()
+        wm = WorkingMemory()
+        decision = writer.should_write("write_file", {"path": "README.md"}, "new content")
+        writer.write_working(wm, decision)
+        assert len(wm.recent_observations) == 1
+        assert wm.recent_observations[0].tool_name == "write_file"
+        assert wm.recent_observations[0].file_path == "README.md"
+        assert "README.md" in wm.candidate_targets
+
     def test_write_semantic_promotes_file_summary(self):
         writer = MemoryWriter()
         sm = SemanticMemory()
@@ -313,7 +322,7 @@ class TestMemoryCompactor:
         # 模拟多次读取同一文件
         wm.add_observation("read_file", "read src/auth.py: implements JWT auth")
         wm.add_observation("read_file", "read src/auth.py: has login handler")
-        report = compactor.promote_to_semantic(wm, sm, "/repo")
+        compactor.promote_to_semantic(wm, sm, "/repo")
         assert sm.count() >= 1
 
     def test_compact_and_promote_combined(self):
@@ -327,6 +336,38 @@ class TestMemoryCompactor:
         report = compactor.compact_and_promote(wm, sm)
         assert "compaction" in report
         assert "promotion" in report
+
+    def test_apply_write_intents_invalidates_semantic_file_summary(self):
+        compactor = MemoryCompactor()
+        writer = MemoryWriter()
+        sm = SemanticMemory()
+        sm.put(SemanticRecord(
+            record_id=SemanticMemory.make_record_id("file_summary", "README.md"),
+            category="file_summary",
+            content="old summary",
+            repo_path="README.md",
+            file_path="README.md",
+        ))
+
+        decision = writer.should_write("write_file", {"path": "README.md"}, "new content")
+        report = compactor.apply_write_intents(sm, decision)
+
+        assert report["semantic_invalidated_count"] == 1
+        assert report["semantic_invalidated_paths"] == ["README.md"]
+        assert sm.search(query="old", category="file_summary") == []
+
+    def test_modified_file_is_not_promoted_from_stale_read_summary(self):
+        compactor = MemoryCompactor()
+        wm = WorkingMemory()
+        sm = SemanticMemory()
+        wm.add_observation("read_file", "read main.py: old entry point")
+        wm.add_observation("read_file", "read main.py: old app setup")
+        wm.add_observation("write_file", "modified main.py")
+
+        report = compactor.promote_to_semantic(wm, sm)
+
+        assert report["promoted_count"] == 0
+        assert sm.count() == 0
 
 
 # === CompactionSchema (Phase 2) ===

@@ -176,3 +176,37 @@ def test_summarize_rows_counts_failure_categories():
         "budget_exceeded": 1,
         "verifier_failed": 1,
     }
+
+
+def test_failure_benchmark_retry_limit_uses_custom_model_client(tmp_path):
+    evaluator = BenchmarkEvaluator(
+        benchmark_path=Path("benchmarks/refactor_failure_v1.json"),
+        artifact_path=tmp_path / "failure.json",
+        workspace_root=tmp_path / "workspaces",
+    )
+    task = next(item for item in evaluator.load()["tasks"] if item["id"] == "stop_reason_retry_limit")
+
+    row = evaluator.run_task(task)
+
+    assert row["passed"] is True
+    assert row["status"] == "pass"
+    assert row["id"] == "stop_reason_retry_limit"
+    assert row["stop_reason"] == "retry_limit_reached"
+    assert row["failure_category"] == "budget_exhausted"
+
+
+def test_failure_benchmark_model_error_uses_custom_model_client(tmp_path):
+    evaluator = BenchmarkEvaluator(
+        benchmark_path=Path("benchmarks/refactor_failure_v1.json"),
+        artifact_path=tmp_path / "failure.json",
+        workspace_root=tmp_path / "workspaces",
+    )
+    task = next(item for item in evaluator.load()["tasks"] if item["id"] == "stop_reason_model_error")
+
+    row = evaluator.run_task(task)
+
+    assert row["passed"] is True
+    assert row["status"] == "pass"
+    assert row["id"] == "stop_reason_model_error"
+    assert row["stop_reason"] == "model_error"
+    assert row["failure_category"] == "context_insufficient"

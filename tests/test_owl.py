@@ -197,6 +197,30 @@ def test_agent_accepts_xml_write_file_tool(tmp_path):
     assert (tmp_path / "hello.py").read_text(encoding="utf-8") == 'print("hi")\n'
 
 
+def test_agent_populates_task_graph_state(tmp_path):
+    agent = build_agent(
+        tmp_path,
+        [
+            '<tool name="write_file" path="hello.py"><content>print("hi")\n</content></tool>',
+            "<final>Done.</final>",
+        ],
+    )
+
+    assert agent.ask("Create hello.py") == "Done."
+
+    state = agent.current_task_graph_state
+    assert state is not None
+    data = state.to_dict()
+    assert data["current_stage"] == "finished"
+    assert data["final_answer"] == "Done."
+    assert data["tool_observations"][0]["tool"] == "write_file"
+    assert data["modified_files"] == ["hello.py"]
+    assert data["memory_compaction_report"]
+
+    report = agent.build_report(agent.current_task_state)
+    assert report["task_graph_state"]["current_stage"] == "finished"
+
+
 def test_retries_do_not_consume_the_whole_budget(tmp_path):
     agent = build_agent(
         tmp_path,
