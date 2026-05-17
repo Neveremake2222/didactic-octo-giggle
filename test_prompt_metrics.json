@@ -1,0 +1,2154 @@
+{
+  "benchmark": {
+    "source": "benchmarks\\coding_tasks.json",
+    "task_count": 6
+  },
+  "captured_at": "2026-04-19T13:11:51+0800",
+  "failure_category_counts": {},
+  "reproducibility": {
+    "decoding": {
+      "max_new_tokens": 64,
+      "temperature": 0.0,
+      "top_p": 1.0
+    },
+    "fixture_snapshot_id": "sha256:61745154689175001a71064515a95f50abb7569cf344b436057ac61b61bbaf99",
+    "locale": "Chinese (Simplified)_China.936",
+    "model_name": "FakeModelClient",
+    "model_version": "scripted-deterministic",
+    "timezone": "Asia/Shanghai"
+  },
+  "rows": [
+    {
+      "allowed_tools": [
+        "read_file",
+        "patch_file"
+      ],
+      "artifact_digest": "sha256:63196856afcd459cad75f233faca8bc2d9c0db0e31281afd7e100ccb852118e4",
+      "artifact_exists": true,
+      "artifact_path": "README.md",
+      "attempts": 2,
+      "category": "documentation",
+      "complexity": {
+        "interaction": "low",
+        "reasoning": "low",
+        "tool": "low"
+      },
+      "evaluations": {
+        "efficiency": {
+          "details": {
+            "avg_tool_ms": 8.0,
+            "context_built_count": 2,
+            "tool_call_count": 1,
+            "total_runtime_ms": 0
+          },
+          "score": 1.0
+        },
+        "outcome": {
+          "details": {
+            "attempts": 2,
+            "status": "completed",
+            "stop_reason": "final_answer_returned",
+            "task_success": true,
+            "tool_steps": 1
+          },
+          "score": 1.0
+        },
+        "process": {
+          "details": {
+            "blocked_tool_call_count": 0,
+            "failed_tool_call_count": 0,
+            "issues": [],
+            "no_progress_loop_count": 0,
+            "premature_done": false,
+            "repeated_identical_call_count": 0
+          },
+          "score": 1.0
+        },
+        "safety": {
+          "details": {
+            "events": [],
+            "path_violation_count": 0,
+            "policy_block_count": 0,
+            "security_event_count": 0
+          },
+          "score": 1.0
+        }
+      },
+      "expected_artifact": "README.md opening sentence is locked benchmark workspace text",
+      "expected_artifact_exists": true,
+      "failure_category": null,
+      "final_answer": "Done.",
+      "fixture_copy_relpath": "readme_intro_locked\\bench_repo_readme",
+      "fixture_repo": "tests/fixtures/bench_repo_readme",
+      "id": "readme_intro_locked",
+      "initial_episodic_notes_empty": true,
+      "initial_history_empty": true,
+      "initial_memory_empty": true,
+      "initial_task_summary_empty": true,
+      "metrics": {
+        "efficiency": {
+          "avg_tool_ms": 8.0,
+          "context_built_count": 2,
+          "context_items_count": 0,
+          "tool_count_with_duration": 1,
+          "total_runtime_ms": 0
+        },
+        "outcome": {
+          "attempts": 2,
+          "stop_reason": "final_answer_returned",
+          "task_success": true,
+          "tool_steps": 1
+        },
+        "process": {
+          "blocked_tool_call_count": 0,
+          "failed_tool_call_count": 0,
+          "no_progress_loop_count": 0,
+          "repeated_identical_call_count": 0,
+          "tool_call_count": 1,
+          "unique_tool_count": 1
+        },
+        "safety": {
+          "path_violation_count": 0,
+          "policy_block_count": 0,
+          "security_event_count": 0
+        }
+      },
+      "non_failure_stop_reason": true,
+      "overall_score": 0.9999999999999999,
+      "passed": true,
+      "prompt": "In the README fixture, replace the placeholder opening sentence with 'This fixture is a locked benchmark workspace.'",
+      "report": {
+        "attempts": 2,
+        "execution_state": {
+          "created_at": "2026-04-19T05:11:47.107532+00:00",
+          "current_phase": "finished",
+          "current_step": 1,
+          "failure_reason": null,
+          "last_observation": "patched README.md",
+          "last_tool": "patch_file",
+          "route": null,
+          "run_id": "run_20260419-131147-d75be2",
+          "step_budget": 4,
+          "stop_reason": null,
+          "task_id": "task_20260419-131147-8d8cbd",
+          "tool_attempts": {
+            "patch_file": 1
+          }
+        },
+        "final_answer": "Done.",
+        "prompt_metadata": {
+          "budget_reductions": [],
+          "current_request": {
+            "raw_chars": 116,
+            "rendered_chars": 116,
+            "section_chars": 138,
+            "text": "In the README fixture, replace the placeholder opening sentence with 'This fixture is a locked benchmark workspace.'"
+          },
+          "history": {
+            "collapsed_duplicate_reads": 0,
+            "older_entries_count": 0,
+            "raw_chars": 310,
+            "rendered_chars": 310,
+            "rendered_entries": [
+              "[user] In the README fixture, replace the placeholder opening sentence with 'This fixture is a locked benchmark workspace.'",
+              "[tool:patch_file] {\"new_text\": \"This fixture is a locked benchmark workspace.\", \"old_text\": \"This is a placeholder benchmark fixture.\", \"path\": \"README.md\"}",
+              "patched README.md"
+            ],
+            "reused_file_summary_count": 0,
+            "summarized_tool_count": 0
+          },
+          "history_chars": 298,
+          "memory_chars": 157,
+          "prefix_changed": true,
+          "prefix_chars": 5937,
+          "prefix_hash": "99feb4770a0d34adb40c8a0f645daa3c92e696bd4e0dfea8c70d4bcca8eae706",
+          "prompt_budget_chars": 12000,
+          "prompt_cache_key": "99feb4770a0d34adb40c8a0f645daa3c92e696bd4e0dfea8c70d4bcca8eae706",
+          "prompt_cache_supported": false,
+          "prompt_chars": 4358,
+          "prompt_over_budget": false,
+          "recent_commits": 5,
+          "reduction_order": [
+            "relevant_memory",
+            "history",
+            "memory",
+            "prefix"
+          ],
+          "relevant_memory": {
+            "items": [
+              {
+                "record_id": "",
+                "repo_path": "",
+                "score": 2.0,
+                "source": "working"
+              }
+            ],
+            "limit": 3,
+            "new_recall_count": 1,
+            "new_recall_sources": [
+              "working"
+            ],
+            "raw_chars": 145,
+            "rendered_chars": 145,
+            "rendered_count": 1,
+            "rendered_notes": [
+              "[working] In the README fixture, replace the placeholder opening sentence with 'This fixture is a locked benchmark workspace.'"
+            ],
+            "selected_count": 0,
+            "selected_notes": []
+          },
+          "request_chars": 116,
+          "secret_env_count": 1,
+          "secret_env_names": [
+            "ANTHROPIC_AUTH_TOKEN"
+          ],
+          "section_budgets": {
+            "current_request": null,
+            "history": 5200,
+            "memory": 1600,
+            "prefix": 3600,
+            "relevant_memory": 1200
+          },
+          "section_order": [
+            "prefix",
+            "memory",
+            "relevant_memory",
+            "history",
+            "current_request"
+          ],
+          "sections": {
+            "current_request": {
+              "budget_chars": null,
+              "raw_chars": 138,
+              "rendered_chars": 138
+            },
+            "history": {
+              "budget_chars": 5200,
+              "raw_chars": 310,
+              "rendered_chars": 310
+            },
+            "memory": {
+              "budget_chars": 1600,
+              "raw_chars": 157,
+              "rendered_chars": 157
+            },
+            "prefix": {
+              "budget_chars": 3600,
+              "raw_chars": 5937,
+              "rendered_chars": 3600
+            },
+            "relevant_memory": {
+              "budget_chars": 1200,
+              "raw_chars": 145,
+              "rendered_chars": 145
+            }
+          },
+          "tool_count": 7,
+          "tool_signature": "4426765ffaaf28349778456b4696f3dae2f5ff87eb4b74ad4e8c4e86ee0437fb",
+          "workspace_changed": true,
+          "workspace_chars": 3259,
+          "workspace_docs": 4,
+          "workspace_fingerprint": "76df86c93b0d51133f96063d67607a68f08f133f6c16bdffc0f0b5b56789eb3a"
+        },
+        "redacted_env": {
+          "secret_env_count": 1,
+          "secret_env_names": [
+            "ANTHROPIC_AUTH_TOKEN"
+          ]
+        },
+        "run_id": "run_20260419-131147-d75be2",
+        "semantic_memory_summary": {
+          "db_path": "E:\\agentcode\\owl\\.tmp\\benchmark-workspaces\\readme_intro_locked\\bench_repo_readme\\.owl\\memory\\semantic-memory.db",
+          "record_count": 0,
+          "total_record_count": 0
+        },
+        "status": "completed",
+        "stop_reason": "final_answer_returned",
+        "task_id": "task_20260419-131147-8d8cbd",
+        "task_state": {
+          "attempts": 2,
+          "final_answer": "Done.",
+          "last_tool": "patch_file",
+          "run_id": "run_20260419-131147-d75be2",
+          "status": "completed",
+          "stop_reason": "final_answer_returned",
+          "task_id": "task_20260419-131147-8d8cbd",
+          "tool_steps": 1,
+          "user_request": "In the README fixture, replace the placeholder opening sentence with 'This fixture is a locked benchmark workspace.'"
+        },
+        "tool_steps": 1,
+        "working_memory": {
+          "active_hypotheses": [],
+          "candidate_targets": [
+            "README.md"
+          ],
+          "consecutive_verification_failures": 0,
+          "created_at": "2026-04-19T05:11:47.108550+00:00",
+          "pending_verifications": [],
+          "plan": "",
+          "recent_observations": [],
+          "structured_plan": null,
+          "task_summary": "In the README fixture, replace the placeholder opening sentence with 'This fixture is a locked benchmark workspace.'",
+          "verification_history": []
+        }
+      },
+      "report_relpath": "readme_intro_locked\\bench_repo_readme\\.owl\\runs\\run_20260419-131147-d75be2\\report.json",
+      "run_dir_relpath": "readme_intro_locked\\bench_repo_readme\\.owl\\runs\\run_20260419-131147-d75be2",
+      "run_id": "run_20260419-131147-d75be2",
+      "status": "pass",
+      "step_budget": 4,
+      "stop_reason": "final_answer_returned",
+      "tags": [],
+      "task_state": {
+        "attempts": 2,
+        "final_answer": "Done.",
+        "last_tool": "patch_file",
+        "run_id": "run_20260419-131147-d75be2",
+        "status": "completed",
+        "stop_reason": "final_answer_returned",
+        "task_id": "task_20260419-131147-8d8cbd",
+        "tool_steps": 1,
+        "user_request": "In the README fixture, replace the placeholder opening sentence with 'This fixture is a locked benchmark workspace.'"
+      },
+      "task_state_relpath": "readme_intro_locked\\bench_repo_readme\\.owl\\runs\\run_20260419-131147-d75be2\\task_state.json",
+      "tool_steps": 1,
+      "trace_validation": {
+        "completeness": {
+          "complete": true,
+          "event_count": 21,
+          "has_memory_events": true,
+          "has_terminal_event": true,
+          "has_tool_event": true,
+          "missing_events": [],
+          "unique_events": [
+            "compaction_promoted",
+            "context_built",
+            "context_compacted",
+            "context_sources_discovered",
+            "memory_written",
+            "model_parsed",
+            "model_requested",
+            "precompaction_flushed",
+            "prompt_built",
+            "run_finished",
+            "run_started",
+            "state_transition",
+            "tool_executed"
+          ]
+        },
+        "order": {
+          "event_sequence": [
+            "run_started",
+            "state_transition",
+            "state_transition",
+            "context_built",
+            "prompt_built",
+            "model_requested",
+            "model_parsed",
+            "state_transition",
+            "memory_written",
+            "tool_executed",
+            "state_transition",
+            "context_built",
+            "context_sources_discovered",
+            "prompt_built",
+            "model_requested",
+            "model_parsed",
+            "precompaction_flushed",
+            "context_compacted",
+            "compaction_promoted",
+            "memory_written",
+            "run_finished"
+          ],
+          "valid": true,
+          "violations": []
+        }
+      },
+      "verifier": "python -c \"from pathlib import Path; text = Path('README.md').read_text(encoding='utf-8'); assert 'This fixture is a locked benchmark workspace.' in text\"",
+      "verifier_exit_code": 0,
+      "verifier_passed": true,
+      "verifier_stderr": "",
+      "verifier_stdout": "",
+      "within_budget": true
+    },
+    {
+      "allowed_tools": [
+        "read_file",
+        "patch_file"
+      ],
+      "artifact_digest": "sha256:9ea54cc1a8d2de44613463df1f5d6a12068079a70c1e0b7ce94f1968b5be88a6",
+      "artifact_exists": true,
+      "artifact_path": "README.md",
+      "attempts": 2,
+      "category": "documentation",
+      "complexity": {
+        "interaction": "low",
+        "reasoning": "low",
+        "tool": "low"
+      },
+      "evaluations": {
+        "efficiency": {
+          "details": {
+            "avg_tool_ms": 8.0,
+            "context_built_count": 2,
+            "tool_call_count": 1,
+            "total_runtime_ms": 0
+          },
+          "score": 1.0
+        },
+        "outcome": {
+          "details": {
+            "attempts": 2,
+            "status": "completed",
+            "stop_reason": "final_answer_returned",
+            "task_success": true,
+            "tool_steps": 1
+          },
+          "score": 1.0
+        },
+        "process": {
+          "details": {
+            "blocked_tool_call_count": 0,
+            "failed_tool_call_count": 0,
+            "issues": [],
+            "no_progress_loop_count": 0,
+            "premature_done": false,
+            "repeated_identical_call_count": 0
+          },
+          "score": 1.0
+        },
+        "safety": {
+          "details": {
+            "events": [],
+            "path_violation_count": 0,
+            "policy_block_count": 0,
+            "security_event_count": 0
+          },
+          "score": 1.0
+        }
+      },
+      "expected_artifact": "README.md contains the schema and baseline note",
+      "expected_artifact_exists": true,
+      "failure_category": null,
+      "final_answer": "Done.",
+      "fixture_copy_relpath": "readme_schema_note\\bench_repo_readme",
+      "fixture_repo": "tests/fixtures/bench_repo_readme",
+      "id": "readme_schema_note",
+      "initial_episodic_notes_empty": true,
+      "initial_history_empty": true,
+      "initial_memory_empty": true,
+      "initial_task_summary_empty": true,
+      "metrics": {
+        "efficiency": {
+          "avg_tool_ms": 8.0,
+          "context_built_count": 2,
+          "context_items_count": 0,
+          "tool_count_with_duration": 1,
+          "total_runtime_ms": 0
+        },
+        "outcome": {
+          "attempts": 2,
+          "stop_reason": "final_answer_returned",
+          "task_success": true,
+          "tool_steps": 1
+        },
+        "process": {
+          "blocked_tool_call_count": 0,
+          "failed_tool_call_count": 0,
+          "no_progress_loop_count": 0,
+          "repeated_identical_call_count": 0,
+          "tool_call_count": 1,
+          "unique_tool_count": 1
+        },
+        "safety": {
+          "path_violation_count": 0,
+          "policy_block_count": 0,
+          "security_event_count": 0
+        }
+      },
+      "non_failure_stop_reason": true,
+      "overall_score": 0.9999999999999999,
+      "passed": true,
+      "prompt": "Replace the first README bullet with a sentence that says the benchmark schema and baseline are fixed.",
+      "report": {
+        "attempts": 2,
+        "execution_state": {
+          "created_at": "2026-04-19T05:11:47.873134+00:00",
+          "current_phase": "finished",
+          "current_step": 1,
+          "failure_reason": null,
+          "last_observation": "patched README.md",
+          "last_tool": "patch_file",
+          "route": null,
+          "run_id": "run_20260419-131147-3cd989",
+          "step_budget": 4,
+          "stop_reason": null,
+          "task_id": "task_20260419-131147-48a941",
+          "tool_attempts": {
+            "patch_file": 1
+          }
+        },
+        "final_answer": "Done.",
+        "prompt_metadata": {
+          "budget_reductions": [],
+          "current_request": {
+            "raw_chars": 102,
+            "rendered_chars": 102,
+            "section_chars": 124,
+            "text": "Replace the first README bullet with a sentence that says the benchmark schema and baseline are fixed."
+          },
+          "history": {
+            "collapsed_duplicate_reads": 0,
+            "older_entries_count": 0,
+            "raw_chars": 291,
+            "rendered_chars": 291,
+            "rendered_entries": [
+              "[user] Replace the first README bullet with a sentence that says the benchmark schema and baseline are fixed.",
+              "[tool:patch_file] {\"new_text\": \"- The benchmark schema and baseline are fixed.\", \"old_text\": \"- Placeholder note about the repo.\", \"path\": \"README.md\"}",
+              "patched README.md"
+            ],
+            "reused_file_summary_count": 0,
+            "summarized_tool_count": 0
+          },
+          "history_chars": 279,
+          "memory_chars": 143,
+          "prefix_changed": true,
+          "prefix_chars": 5942,
+          "prefix_hash": "8f186dd91ea5ca5e0a3332286e3aa0c28cbcdd8d6359cefb64ad7b759f5a4178",
+          "prompt_budget_chars": 12000,
+          "prompt_cache_key": "8f186dd91ea5ca5e0a3332286e3aa0c28cbcdd8d6359cefb64ad7b759f5a4178",
+          "prompt_cache_supported": false,
+          "prompt_chars": 4297,
+          "prompt_over_budget": false,
+          "recent_commits": 5,
+          "reduction_order": [
+            "relevant_memory",
+            "history",
+            "memory",
+            "prefix"
+          ],
+          "relevant_memory": {
+            "items": [
+              {
+                "record_id": "",
+                "repo_path": "",
+                "score": 2.0,
+                "source": "working"
+              }
+            ],
+            "limit": 3,
+            "new_recall_count": 1,
+            "new_recall_sources": [
+              "working"
+            ],
+            "raw_chars": 131,
+            "rendered_chars": 131,
+            "rendered_count": 1,
+            "rendered_notes": [
+              "[working] Replace the first README bullet with a sentence that says the benchmark schema and baseline are fixed."
+            ],
+            "selected_count": 0,
+            "selected_notes": []
+          },
+          "request_chars": 102,
+          "secret_env_count": 1,
+          "secret_env_names": [
+            "ANTHROPIC_AUTH_TOKEN"
+          ],
+          "section_budgets": {
+            "current_request": null,
+            "history": 5200,
+            "memory": 1600,
+            "prefix": 3600,
+            "relevant_memory": 1200
+          },
+          "section_order": [
+            "prefix",
+            "memory",
+            "relevant_memory",
+            "history",
+            "current_request"
+          ],
+          "sections": {
+            "current_request": {
+              "budget_chars": null,
+              "raw_chars": 124,
+              "rendered_chars": 124
+            },
+            "history": {
+              "budget_chars": 5200,
+              "raw_chars": 291,
+              "rendered_chars": 291
+            },
+            "memory": {
+              "budget_chars": 1600,
+              "raw_chars": 143,
+              "rendered_chars": 143
+            },
+            "prefix": {
+              "budget_chars": 3600,
+              "raw_chars": 5942,
+              "rendered_chars": 3600
+            },
+            "relevant_memory": {
+              "budget_chars": 1200,
+              "raw_chars": 131,
+              "rendered_chars": 131
+            }
+          },
+          "tool_count": 7,
+          "tool_signature": "4426765ffaaf28349778456b4696f3dae2f5ff87eb4b74ad4e8c4e86ee0437fb",
+          "workspace_changed": true,
+          "workspace_chars": 3264,
+          "workspace_docs": 4,
+          "workspace_fingerprint": "dc823b4ac993d4617774353032cfd125f3083e06513f70cf15054c071002017a"
+        },
+        "redacted_env": {
+          "secret_env_count": 1,
+          "secret_env_names": [
+            "ANTHROPIC_AUTH_TOKEN"
+          ]
+        },
+        "run_id": "run_20260419-131147-3cd989",
+        "semantic_memory_summary": {
+          "db_path": "E:\\agentcode\\owl\\.tmp\\benchmark-workspaces\\readme_schema_note\\bench_repo_readme\\.owl\\memory\\semantic-memory.db",
+          "record_count": 0,
+          "total_record_count": 0
+        },
+        "status": "completed",
+        "stop_reason": "final_answer_returned",
+        "task_id": "task_20260419-131147-48a941",
+        "task_state": {
+          "attempts": 2,
+          "final_answer": "Done.",
+          "last_tool": "patch_file",
+          "run_id": "run_20260419-131147-3cd989",
+          "status": "completed",
+          "stop_reason": "final_answer_returned",
+          "task_id": "task_20260419-131147-48a941",
+          "tool_steps": 1,
+          "user_request": "Replace the first README bullet with a sentence that says the benchmark schema and baseline are fixed."
+        },
+        "tool_steps": 1,
+        "working_memory": {
+          "active_hypotheses": [],
+          "candidate_targets": [
+            "README.md"
+          ],
+          "consecutive_verification_failures": 0,
+          "created_at": "2026-04-19T05:11:47.873937+00:00",
+          "pending_verifications": [],
+          "plan": "",
+          "recent_observations": [],
+          "structured_plan": null,
+          "task_summary": "Replace the first README bullet with a sentence that says the benchmark schema and baseline are fixed.",
+          "verification_history": []
+        }
+      },
+      "report_relpath": "readme_schema_note\\bench_repo_readme\\.owl\\runs\\run_20260419-131147-3cd989\\report.json",
+      "run_dir_relpath": "readme_schema_note\\bench_repo_readme\\.owl\\runs\\run_20260419-131147-3cd989",
+      "run_id": "run_20260419-131147-3cd989",
+      "status": "pass",
+      "step_budget": 4,
+      "stop_reason": "final_answer_returned",
+      "tags": [],
+      "task_state": {
+        "attempts": 2,
+        "final_answer": "Done.",
+        "last_tool": "patch_file",
+        "run_id": "run_20260419-131147-3cd989",
+        "status": "completed",
+        "stop_reason": "final_answer_returned",
+        "task_id": "task_20260419-131147-48a941",
+        "tool_steps": 1,
+        "user_request": "Replace the first README bullet with a sentence that says the benchmark schema and baseline are fixed."
+      },
+      "task_state_relpath": "readme_schema_note\\bench_repo_readme\\.owl\\runs\\run_20260419-131147-3cd989\\task_state.json",
+      "tool_steps": 1,
+      "trace_validation": {
+        "completeness": {
+          "complete": true,
+          "event_count": 21,
+          "has_memory_events": true,
+          "has_terminal_event": true,
+          "has_tool_event": true,
+          "missing_events": [],
+          "unique_events": [
+            "compaction_promoted",
+            "context_built",
+            "context_compacted",
+            "context_sources_discovered",
+            "memory_written",
+            "model_parsed",
+            "model_requested",
+            "precompaction_flushed",
+            "prompt_built",
+            "run_finished",
+            "run_started",
+            "state_transition",
+            "tool_executed"
+          ]
+        },
+        "order": {
+          "event_sequence": [
+            "run_started",
+            "state_transition",
+            "state_transition",
+            "context_built",
+            "prompt_built",
+            "model_requested",
+            "model_parsed",
+            "state_transition",
+            "memory_written",
+            "tool_executed",
+            "state_transition",
+            "context_built",
+            "context_sources_discovered",
+            "prompt_built",
+            "model_requested",
+            "model_parsed",
+            "precompaction_flushed",
+            "context_compacted",
+            "compaction_promoted",
+            "memory_written",
+            "run_finished"
+          ],
+          "valid": true,
+          "violations": []
+        }
+      },
+      "verifier": "python -c \"from pathlib import Path; text = Path('README.md').read_text(encoding='utf-8'); assert 'schema and baseline are fixed' in text\"",
+      "verifier_exit_code": 0,
+      "verifier_passed": true,
+      "verifier_stderr": "",
+      "verifier_stdout": "",
+      "within_budget": true
+    },
+    {
+      "allowed_tools": [
+        "read_file",
+        "patch_file"
+      ],
+      "artifact_digest": "sha256:dce9dfc8ec408a112a3cf5696fc0e45ea749bb03d15d41969229077263718435",
+      "artifact_exists": true,
+      "artifact_path": "README.md",
+      "attempts": 2,
+      "category": "documentation",
+      "complexity": {
+        "interaction": "low",
+        "reasoning": "low",
+        "tool": "low"
+      },
+      "evaluations": {
+        "efficiency": {
+          "details": {
+            "avg_tool_ms": 8.0,
+            "context_built_count": 2,
+            "tool_call_count": 1,
+            "total_runtime_ms": 0
+          },
+          "score": 1.0
+        },
+        "outcome": {
+          "details": {
+            "attempts": 2,
+            "status": "completed",
+            "stop_reason": "final_answer_returned",
+            "task_success": true,
+            "tool_steps": 1
+          },
+          "score": 1.0
+        },
+        "process": {
+          "details": {
+            "blocked_tool_call_count": 0,
+            "failed_tool_call_count": 0,
+            "issues": [],
+            "no_progress_loop_count": 0,
+            "premature_done": false,
+            "repeated_identical_call_count": 0
+          },
+          "score": 1.0
+        },
+        "safety": {
+          "details": {
+            "events": [],
+            "path_violation_count": 0,
+            "policy_block_count": 0,
+            "security_event_count": 0
+          },
+          "score": 1.0
+        }
+      },
+      "expected_artifact": "README.md contains the deterministic file ordering note",
+      "expected_artifact_exists": true,
+      "failure_category": null,
+      "final_answer": "Done.",
+      "fixture_copy_relpath": "readme_ordering_note\\bench_repo_readme",
+      "fixture_repo": "tests/fixtures/bench_repo_readme",
+      "id": "readme_ordering_note",
+      "initial_episodic_notes_empty": true,
+      "initial_history_empty": true,
+      "initial_memory_empty": true,
+      "initial_task_summary_empty": true,
+      "metrics": {
+        "efficiency": {
+          "avg_tool_ms": 8.0,
+          "context_built_count": 2,
+          "context_items_count": 0,
+          "tool_count_with_duration": 1,
+          "total_runtime_ms": 0
+        },
+        "outcome": {
+          "attempts": 2,
+          "stop_reason": "final_answer_returned",
+          "task_success": true,
+          "tool_steps": 1
+        },
+        "process": {
+          "blocked_tool_call_count": 0,
+          "failed_tool_call_count": 0,
+          "no_progress_loop_count": 0,
+          "repeated_identical_call_count": 0,
+          "tool_call_count": 1,
+          "unique_tool_count": 1
+        },
+        "safety": {
+          "path_violation_count": 0,
+          "policy_block_count": 0,
+          "security_event_count": 0
+        }
+      },
+      "non_failure_stop_reason": true,
+      "overall_score": 0.9999999999999999,
+      "passed": true,
+      "prompt": "Replace the second README bullet with a sentence about deterministic file ordering.",
+      "report": {
+        "attempts": 2,
+        "execution_state": {
+          "created_at": "2026-04-19T05:11:48.607476+00:00",
+          "current_phase": "finished",
+          "current_step": 1,
+          "failure_reason": null,
+          "last_observation": "patched README.md",
+          "last_tool": "patch_file",
+          "route": null,
+          "run_id": "run_20260419-131148-acc785",
+          "step_budget": 4,
+          "stop_reason": null,
+          "task_id": "task_20260419-131148-81d899",
+          "tool_attempts": {
+            "patch_file": 1
+          }
+        },
+        "final_answer": "Done.",
+        "prompt_metadata": {
+          "budget_reductions": [],
+          "current_request": {
+            "raw_chars": 83,
+            "rendered_chars": 83,
+            "section_chars": 105,
+            "text": "Replace the second README bullet with a sentence about deterministic file ordering."
+          },
+          "history": {
+            "collapsed_duplicate_reads": 0,
+            "older_entries_count": 0,
+            "raw_chars": 292,
+            "rendered_chars": 292,
+            "rendered_entries": [
+              "[user] Replace the second README bullet with a sentence about deterministic file ordering.",
+              "[tool:patch_file] {\"new_text\": \"- Deterministic file ordering keeps benchmark diffs stable.\", \"old_text\": \"- Placeholder note about the file layout.\", \"path\": \"README.md\"}",
+              "patched README.md"
+            ],
+            "reused_file_summary_count": 0,
+            "summarized_tool_count": 0
+          },
+          "history_chars": 280,
+          "memory_chars": 124,
+          "prefix_changed": true,
+          "prefix_chars": 5952,
+          "prefix_hash": "0433dfc93b0251afa1c920e1e399b15495b33cf42039769b78add559b18f6a35",
+          "prompt_budget_chars": 12000,
+          "prompt_cache_key": "0433dfc93b0251afa1c920e1e399b15495b33cf42039769b78add559b18f6a35",
+          "prompt_cache_supported": false,
+          "prompt_chars": 4241,
+          "prompt_over_budget": false,
+          "recent_commits": 5,
+          "reduction_order": [
+            "relevant_memory",
+            "history",
+            "memory",
+            "prefix"
+          ],
+          "relevant_memory": {
+            "items": [
+              {
+                "record_id": "",
+                "repo_path": "",
+                "score": 2.0,
+                "source": "working"
+              }
+            ],
+            "limit": 3,
+            "new_recall_count": 1,
+            "new_recall_sources": [
+              "working"
+            ],
+            "raw_chars": 112,
+            "rendered_chars": 112,
+            "rendered_count": 1,
+            "rendered_notes": [
+              "[working] Replace the second README bullet with a sentence about deterministic file ordering."
+            ],
+            "selected_count": 0,
+            "selected_notes": []
+          },
+          "request_chars": 83,
+          "secret_env_count": 1,
+          "secret_env_names": [
+            "ANTHROPIC_AUTH_TOKEN"
+          ],
+          "section_budgets": {
+            "current_request": null,
+            "history": 5200,
+            "memory": 1600,
+            "prefix": 3600,
+            "relevant_memory": 1200
+          },
+          "section_order": [
+            "prefix",
+            "memory",
+            "relevant_memory",
+            "history",
+            "current_request"
+          ],
+          "sections": {
+            "current_request": {
+              "budget_chars": null,
+              "raw_chars": 105,
+              "rendered_chars": 105
+            },
+            "history": {
+              "budget_chars": 5200,
+              "raw_chars": 292,
+              "rendered_chars": 292
+            },
+            "memory": {
+              "budget_chars": 1600,
+              "raw_chars": 124,
+              "rendered_chars": 124
+            },
+            "prefix": {
+              "budget_chars": 3600,
+              "raw_chars": 5952,
+              "rendered_chars": 3600
+            },
+            "relevant_memory": {
+              "budget_chars": 1200,
+              "raw_chars": 112,
+              "rendered_chars": 112
+            }
+          },
+          "tool_count": 7,
+          "tool_signature": "4426765ffaaf28349778456b4696f3dae2f5ff87eb4b74ad4e8c4e86ee0437fb",
+          "workspace_changed": true,
+          "workspace_chars": 3274,
+          "workspace_docs": 4,
+          "workspace_fingerprint": "e1b12fa6515278d00bfa0c37e6ca8040361c4c56d658437b2e4f595e69735770"
+        },
+        "redacted_env": {
+          "secret_env_count": 1,
+          "secret_env_names": [
+            "ANTHROPIC_AUTH_TOKEN"
+          ]
+        },
+        "run_id": "run_20260419-131148-acc785",
+        "semantic_memory_summary": {
+          "db_path": "E:\\agentcode\\owl\\.tmp\\benchmark-workspaces\\readme_ordering_note\\bench_repo_readme\\.owl\\memory\\semantic-memory.db",
+          "record_count": 0,
+          "total_record_count": 0
+        },
+        "status": "completed",
+        "stop_reason": "final_answer_returned",
+        "task_id": "task_20260419-131148-81d899",
+        "task_state": {
+          "attempts": 2,
+          "final_answer": "Done.",
+          "last_tool": "patch_file",
+          "run_id": "run_20260419-131148-acc785",
+          "status": "completed",
+          "stop_reason": "final_answer_returned",
+          "task_id": "task_20260419-131148-81d899",
+          "tool_steps": 1,
+          "user_request": "Replace the second README bullet with a sentence about deterministic file ordering."
+        },
+        "tool_steps": 1,
+        "working_memory": {
+          "active_hypotheses": [],
+          "candidate_targets": [
+            "README.md"
+          ],
+          "consecutive_verification_failures": 0,
+          "created_at": "2026-04-19T05:11:48.608387+00:00",
+          "pending_verifications": [],
+          "plan": "",
+          "recent_observations": [],
+          "structured_plan": null,
+          "task_summary": "Replace the second README bullet with a sentence about deterministic file ordering.",
+          "verification_history": []
+        }
+      },
+      "report_relpath": "readme_ordering_note\\bench_repo_readme\\.owl\\runs\\run_20260419-131148-acc785\\report.json",
+      "run_dir_relpath": "readme_ordering_note\\bench_repo_readme\\.owl\\runs\\run_20260419-131148-acc785",
+      "run_id": "run_20260419-131148-acc785",
+      "status": "pass",
+      "step_budget": 4,
+      "stop_reason": "final_answer_returned",
+      "tags": [],
+      "task_state": {
+        "attempts": 2,
+        "final_answer": "Done.",
+        "last_tool": "patch_file",
+        "run_id": "run_20260419-131148-acc785",
+        "status": "completed",
+        "stop_reason": "final_answer_returned",
+        "task_id": "task_20260419-131148-81d899",
+        "tool_steps": 1,
+        "user_request": "Replace the second README bullet with a sentence about deterministic file ordering."
+      },
+      "task_state_relpath": "readme_ordering_note\\bench_repo_readme\\.owl\\runs\\run_20260419-131148-acc785\\task_state.json",
+      "tool_steps": 1,
+      "trace_validation": {
+        "completeness": {
+          "complete": true,
+          "event_count": 21,
+          "has_memory_events": true,
+          "has_terminal_event": true,
+          "has_tool_event": true,
+          "missing_events": [],
+          "unique_events": [
+            "compaction_promoted",
+            "context_built",
+            "context_compacted",
+            "context_sources_discovered",
+            "memory_written",
+            "model_parsed",
+            "model_requested",
+            "precompaction_flushed",
+            "prompt_built",
+            "run_finished",
+            "run_started",
+            "state_transition",
+            "tool_executed"
+          ]
+        },
+        "order": {
+          "event_sequence": [
+            "run_started",
+            "state_transition",
+            "state_transition",
+            "context_built",
+            "prompt_built",
+            "model_requested",
+            "model_parsed",
+            "state_transition",
+            "memory_written",
+            "tool_executed",
+            "state_transition",
+            "context_built",
+            "context_sources_discovered",
+            "prompt_built",
+            "model_requested",
+            "model_parsed",
+            "precompaction_flushed",
+            "context_compacted",
+            "compaction_promoted",
+            "memory_written",
+            "run_finished"
+          ],
+          "valid": true,
+          "violations": []
+        }
+      },
+      "verifier": "python -c \"from pathlib import Path; text = Path('README.md').read_text(encoding='utf-8'); assert 'deterministic file ordering' in text.lower()\"",
+      "verifier_exit_code": 0,
+      "verifier_passed": true,
+      "verifier_stderr": "",
+      "verifier_stdout": "",
+      "within_budget": true
+    },
+    {
+      "allowed_tools": [
+        "read_file",
+        "patch_file"
+      ],
+      "artifact_digest": "sha256:e8d7526c3da15e9570bc6db4f097e672ef50b1c19e82de5b4c074d9e87362e2e",
+      "artifact_exists": true,
+      "artifact_path": "sample.txt",
+      "attempts": 2,
+      "category": "text-edit",
+      "complexity": {
+        "interaction": "low",
+        "reasoning": "low",
+        "tool": "low"
+      },
+      "evaluations": {
+        "efficiency": {
+          "details": {
+            "avg_tool_ms": 7.0,
+            "context_built_count": 2,
+            "tool_call_count": 1,
+            "total_runtime_ms": 0
+          },
+          "score": 1.0
+        },
+        "outcome": {
+          "details": {
+            "attempts": 2,
+            "status": "completed",
+            "stop_reason": "final_answer_returned",
+            "task_success": true,
+            "tool_steps": 1
+          },
+          "score": 1.0
+        },
+        "process": {
+          "details": {
+            "blocked_tool_call_count": 0,
+            "failed_tool_call_count": 0,
+            "issues": [],
+            "no_progress_loop_count": 0,
+            "premature_done": false,
+            "repeated_identical_call_count": 0
+          },
+          "score": 1.0
+        },
+        "safety": {
+          "details": {
+            "events": [],
+            "path_violation_count": 0,
+            "policy_block_count": 0,
+            "security_event_count": 0
+          },
+          "score": 1.0
+        }
+      },
+      "expected_artifact": "sample.txt contains beta-locked",
+      "expected_artifact_exists": true,
+      "failure_category": null,
+      "final_answer": "Done.",
+      "fixture_copy_relpath": "sample_beta_locked\\bench_repo_patch",
+      "fixture_repo": "tests/fixtures/bench_repo_patch",
+      "id": "sample_beta_locked",
+      "initial_episodic_notes_empty": true,
+      "initial_history_empty": true,
+      "initial_memory_empty": true,
+      "initial_task_summary_empty": true,
+      "metrics": {
+        "efficiency": {
+          "avg_tool_ms": 7.0,
+          "context_built_count": 2,
+          "context_items_count": 0,
+          "tool_count_with_duration": 1,
+          "total_runtime_ms": 0
+        },
+        "outcome": {
+          "attempts": 2,
+          "stop_reason": "final_answer_returned",
+          "task_success": true,
+          "tool_steps": 1
+        },
+        "process": {
+          "blocked_tool_call_count": 0,
+          "failed_tool_call_count": 0,
+          "no_progress_loop_count": 0,
+          "repeated_identical_call_count": 0,
+          "tool_call_count": 1,
+          "unique_tool_count": 1
+        },
+        "safety": {
+          "path_violation_count": 0,
+          "policy_block_count": 0,
+          "security_event_count": 0
+        }
+      },
+      "non_failure_stop_reason": true,
+      "overall_score": 0.9999999999999999,
+      "passed": true,
+      "prompt": "In sample.txt, replace beta with beta-locked.",
+      "report": {
+        "attempts": 2,
+        "execution_state": {
+          "created_at": "2026-04-19T05:11:49.406181+00:00",
+          "current_phase": "finished",
+          "current_step": 1,
+          "failure_reason": null,
+          "last_observation": "patched sample.txt",
+          "last_tool": "patch_file",
+          "route": null,
+          "run_id": "run_20260419-131149-13a7ee",
+          "step_budget": 4,
+          "stop_reason": null,
+          "task_id": "task_20260419-131149-22c30a",
+          "tool_attempts": {
+            "patch_file": 1
+          }
+        },
+        "final_answer": "Done.",
+        "prompt_metadata": {
+          "budget_reductions": [],
+          "current_request": {
+            "raw_chars": 45,
+            "rendered_chars": 45,
+            "section_chars": 67,
+            "text": "In sample.txt, replace beta with beta-locked."
+          },
+          "history": {
+            "collapsed_duplicate_reads": 0,
+            "older_entries_count": 0,
+            "raw_chars": 171,
+            "rendered_chars": 171,
+            "rendered_entries": [
+              "[user] In sample.txt, replace beta with beta-locked.",
+              "[tool:patch_file] {\"new_text\": \"beta-locked\", \"old_text\": \"beta\", \"path\": \"sample.txt\"}",
+              "patched sample.txt"
+            ],
+            "reused_file_summary_count": 0,
+            "summarized_tool_count": 0
+          },
+          "history_chars": 159,
+          "memory_chars": 87,
+          "prefix_changed": false,
+          "prefix_chars": 5703,
+          "prefix_hash": "37e0056838c8ea1a09104fde886e18158196b9ffb83554b8b9f354f37edfad48",
+          "prompt_budget_chars": 12000,
+          "prompt_cache_key": "37e0056838c8ea1a09104fde886e18158196b9ffb83554b8b9f354f37edfad48",
+          "prompt_cache_supported": false,
+          "prompt_chars": 4007,
+          "prompt_over_budget": false,
+          "recent_commits": 5,
+          "reduction_order": [
+            "relevant_memory",
+            "history",
+            "memory",
+            "prefix"
+          ],
+          "relevant_memory": {
+            "items": [
+              {
+                "record_id": "",
+                "repo_path": "",
+                "score": 2.0,
+                "source": "working"
+              }
+            ],
+            "limit": 3,
+            "new_recall_count": 1,
+            "new_recall_sources": [
+              "working"
+            ],
+            "raw_chars": 74,
+            "rendered_chars": 74,
+            "rendered_count": 1,
+            "rendered_notes": [
+              "[working] In sample.txt, replace beta with beta-locked."
+            ],
+            "selected_count": 0,
+            "selected_notes": []
+          },
+          "request_chars": 45,
+          "secret_env_count": 1,
+          "secret_env_names": [
+            "ANTHROPIC_AUTH_TOKEN"
+          ],
+          "section_budgets": {
+            "current_request": null,
+            "history": 5200,
+            "memory": 1600,
+            "prefix": 3600,
+            "relevant_memory": 1200
+          },
+          "section_order": [
+            "prefix",
+            "memory",
+            "relevant_memory",
+            "history",
+            "current_request"
+          ],
+          "sections": {
+            "current_request": {
+              "budget_chars": null,
+              "raw_chars": 67,
+              "rendered_chars": 67
+            },
+            "history": {
+              "budget_chars": 5200,
+              "raw_chars": 171,
+              "rendered_chars": 171
+            },
+            "memory": {
+              "budget_chars": 1600,
+              "raw_chars": 87,
+              "rendered_chars": 87
+            },
+            "prefix": {
+              "budget_chars": 3600,
+              "raw_chars": 5703,
+              "rendered_chars": 3600
+            },
+            "relevant_memory": {
+              "budget_chars": 1200,
+              "raw_chars": 74,
+              "rendered_chars": 74
+            }
+          },
+          "tool_count": 7,
+          "tool_signature": "4426765ffaaf28349778456b4696f3dae2f5ff87eb4b74ad4e8c4e86ee0437fb",
+          "workspace_changed": false,
+          "workspace_chars": 3025,
+          "workspace_docs": 3,
+          "workspace_fingerprint": "60f26b3b0ec94005993e0cd3ac42d4504b25798a0358289f6b1de47244b722fc"
+        },
+        "redacted_env": {
+          "secret_env_count": 1,
+          "secret_env_names": [
+            "ANTHROPIC_AUTH_TOKEN"
+          ]
+        },
+        "run_id": "run_20260419-131149-13a7ee",
+        "semantic_memory_summary": {
+          "db_path": "E:\\agentcode\\owl\\.tmp\\benchmark-workspaces\\sample_beta_locked\\bench_repo_patch\\.owl\\memory\\semantic-memory.db",
+          "record_count": 0,
+          "total_record_count": 0
+        },
+        "status": "completed",
+        "stop_reason": "final_answer_returned",
+        "task_id": "task_20260419-131149-22c30a",
+        "task_state": {
+          "attempts": 2,
+          "final_answer": "Done.",
+          "last_tool": "patch_file",
+          "run_id": "run_20260419-131149-13a7ee",
+          "status": "completed",
+          "stop_reason": "final_answer_returned",
+          "task_id": "task_20260419-131149-22c30a",
+          "tool_steps": 1,
+          "user_request": "In sample.txt, replace beta with beta-locked."
+        },
+        "tool_steps": 1,
+        "working_memory": {
+          "active_hypotheses": [],
+          "candidate_targets": [
+            "sample.txt"
+          ],
+          "consecutive_verification_failures": 0,
+          "created_at": "2026-04-19T05:11:49.407186+00:00",
+          "pending_verifications": [],
+          "plan": "",
+          "recent_observations": [],
+          "structured_plan": null,
+          "task_summary": "In sample.txt, replace beta with beta-locked.",
+          "verification_history": []
+        }
+      },
+      "report_relpath": "sample_beta_locked\\bench_repo_patch\\.owl\\runs\\run_20260419-131149-13a7ee\\report.json",
+      "run_dir_relpath": "sample_beta_locked\\bench_repo_patch\\.owl\\runs\\run_20260419-131149-13a7ee",
+      "run_id": "run_20260419-131149-13a7ee",
+      "status": "pass",
+      "step_budget": 4,
+      "stop_reason": "final_answer_returned",
+      "tags": [],
+      "task_state": {
+        "attempts": 2,
+        "final_answer": "Done.",
+        "last_tool": "patch_file",
+        "run_id": "run_20260419-131149-13a7ee",
+        "status": "completed",
+        "stop_reason": "final_answer_returned",
+        "task_id": "task_20260419-131149-22c30a",
+        "tool_steps": 1,
+        "user_request": "In sample.txt, replace beta with beta-locked."
+      },
+      "task_state_relpath": "sample_beta_locked\\bench_repo_patch\\.owl\\runs\\run_20260419-131149-13a7ee\\task_state.json",
+      "tool_steps": 1,
+      "trace_validation": {
+        "completeness": {
+          "complete": true,
+          "event_count": 21,
+          "has_memory_events": true,
+          "has_terminal_event": true,
+          "has_tool_event": true,
+          "missing_events": [],
+          "unique_events": [
+            "compaction_promoted",
+            "context_built",
+            "context_compacted",
+            "context_sources_discovered",
+            "memory_written",
+            "model_parsed",
+            "model_requested",
+            "precompaction_flushed",
+            "prompt_built",
+            "run_finished",
+            "run_started",
+            "state_transition",
+            "tool_executed"
+          ]
+        },
+        "order": {
+          "event_sequence": [
+            "run_started",
+            "state_transition",
+            "state_transition",
+            "context_built",
+            "prompt_built",
+            "model_requested",
+            "model_parsed",
+            "state_transition",
+            "memory_written",
+            "tool_executed",
+            "state_transition",
+            "context_built",
+            "context_sources_discovered",
+            "prompt_built",
+            "model_requested",
+            "model_parsed",
+            "precompaction_flushed",
+            "context_compacted",
+            "compaction_promoted",
+            "memory_written",
+            "run_finished"
+          ],
+          "valid": true,
+          "violations": []
+        }
+      },
+      "verifier": "python -c \"from pathlib import Path; text = Path('sample.txt').read_text(encoding='utf-8'); assert 'beta-locked' in text and '\\nbeta\\n' not in text\"",
+      "verifier_exit_code": 0,
+      "verifier_passed": true,
+      "verifier_stderr": "",
+      "verifier_stdout": "",
+      "within_budget": true
+    },
+    {
+      "allowed_tools": [
+        "read_file",
+        "patch_file"
+      ],
+      "artifact_digest": "sha256:3d30e7712c8f62c1a30f60f805195f645c7b9b49f8d64cfbe14c7c4a3eba9f90",
+      "artifact_exists": true,
+      "artifact_path": "sample.txt",
+      "attempts": 2,
+      "category": "text-edit",
+      "complexity": {
+        "interaction": "low",
+        "reasoning": "low",
+        "tool": "low"
+      },
+      "evaluations": {
+        "efficiency": {
+          "details": {
+            "avg_tool_ms": 9.0,
+            "context_built_count": 2,
+            "tool_call_count": 1,
+            "total_runtime_ms": 0
+          },
+          "score": 1.0
+        },
+        "outcome": {
+          "details": {
+            "attempts": 2,
+            "status": "completed",
+            "stop_reason": "final_answer_returned",
+            "task_success": true,
+            "tool_steps": 1
+          },
+          "score": 1.0
+        },
+        "process": {
+          "details": {
+            "blocked_tool_call_count": 0,
+            "failed_tool_call_count": 0,
+            "issues": [],
+            "no_progress_loop_count": 0,
+            "premature_done": false,
+            "repeated_identical_call_count": 0
+          },
+          "score": 1.0
+        },
+        "safety": {
+          "details": {
+            "events": [],
+            "path_violation_count": 0,
+            "policy_block_count": 0,
+            "security_event_count": 0
+          },
+          "score": 1.0
+        }
+      },
+      "expected_artifact": "sample.txt contains gamma-locked",
+      "expected_artifact_exists": true,
+      "failure_category": null,
+      "final_answer": "Done.",
+      "fixture_copy_relpath": "sample_gamma_locked\\bench_repo_patch",
+      "fixture_repo": "tests/fixtures/bench_repo_patch",
+      "id": "sample_gamma_locked",
+      "initial_episodic_notes_empty": true,
+      "initial_history_empty": true,
+      "initial_memory_empty": true,
+      "initial_task_summary_empty": true,
+      "metrics": {
+        "efficiency": {
+          "avg_tool_ms": 9.0,
+          "context_built_count": 2,
+          "context_items_count": 0,
+          "tool_count_with_duration": 1,
+          "total_runtime_ms": 0
+        },
+        "outcome": {
+          "attempts": 2,
+          "stop_reason": "final_answer_returned",
+          "task_success": true,
+          "tool_steps": 1
+        },
+        "process": {
+          "blocked_tool_call_count": 0,
+          "failed_tool_call_count": 0,
+          "no_progress_loop_count": 0,
+          "repeated_identical_call_count": 0,
+          "tool_call_count": 1,
+          "unique_tool_count": 1
+        },
+        "safety": {
+          "path_violation_count": 0,
+          "policy_block_count": 0,
+          "security_event_count": 0
+        }
+      },
+      "non_failure_stop_reason": true,
+      "overall_score": 0.9999999999999999,
+      "passed": true,
+      "prompt": "In sample.txt, replace gamma with gamma-locked.",
+      "report": {
+        "attempts": 2,
+        "execution_state": {
+          "created_at": "2026-04-19T05:11:50.154879+00:00",
+          "current_phase": "finished",
+          "current_step": 1,
+          "failure_reason": null,
+          "last_observation": "patched sample.txt",
+          "last_tool": "patch_file",
+          "route": null,
+          "run_id": "run_20260419-131150-3b69ce",
+          "step_budget": 4,
+          "stop_reason": null,
+          "task_id": "task_20260419-131150-1d6f0a",
+          "tool_attempts": {
+            "patch_file": 1
+          }
+        },
+        "final_answer": "Done.",
+        "prompt_metadata": {
+          "budget_reductions": [],
+          "current_request": {
+            "raw_chars": 47,
+            "rendered_chars": 47,
+            "section_chars": 69,
+            "text": "In sample.txt, replace gamma with gamma-locked."
+          },
+          "history": {
+            "collapsed_duplicate_reads": 0,
+            "older_entries_count": 0,
+            "raw_chars": 175,
+            "rendered_chars": 175,
+            "rendered_entries": [
+              "[user] In sample.txt, replace gamma with gamma-locked.",
+              "[tool:patch_file] {\"new_text\": \"gamma-locked\", \"old_text\": \"gamma\", \"path\": \"sample.txt\"}",
+              "patched sample.txt"
+            ],
+            "reused_file_summary_count": 0,
+            "summarized_tool_count": 0
+          },
+          "history_chars": 163,
+          "memory_chars": 89,
+          "prefix_changed": false,
+          "prefix_chars": 5704,
+          "prefix_hash": "840843aa9aa2d93922c10238c45eaa7c1e34b929f1dbd425fccf9194a0134ef1",
+          "prompt_budget_chars": 12000,
+          "prompt_cache_key": "840843aa9aa2d93922c10238c45eaa7c1e34b929f1dbd425fccf9194a0134ef1",
+          "prompt_cache_supported": false,
+          "prompt_chars": 4017,
+          "prompt_over_budget": false,
+          "recent_commits": 5,
+          "reduction_order": [
+            "relevant_memory",
+            "history",
+            "memory",
+            "prefix"
+          ],
+          "relevant_memory": {
+            "items": [
+              {
+                "record_id": "",
+                "repo_path": "",
+                "score": 2.0,
+                "source": "working"
+              }
+            ],
+            "limit": 3,
+            "new_recall_count": 1,
+            "new_recall_sources": [
+              "working"
+            ],
+            "raw_chars": 76,
+            "rendered_chars": 76,
+            "rendered_count": 1,
+            "rendered_notes": [
+              "[working] In sample.txt, replace gamma with gamma-locked."
+            ],
+            "selected_count": 0,
+            "selected_notes": []
+          },
+          "request_chars": 47,
+          "secret_env_count": 1,
+          "secret_env_names": [
+            "ANTHROPIC_AUTH_TOKEN"
+          ],
+          "section_budgets": {
+            "current_request": null,
+            "history": 5200,
+            "memory": 1600,
+            "prefix": 3600,
+            "relevant_memory": 1200
+          },
+          "section_order": [
+            "prefix",
+            "memory",
+            "relevant_memory",
+            "history",
+            "current_request"
+          ],
+          "sections": {
+            "current_request": {
+              "budget_chars": null,
+              "raw_chars": 69,
+              "rendered_chars": 69
+            },
+            "history": {
+              "budget_chars": 5200,
+              "raw_chars": 175,
+              "rendered_chars": 175
+            },
+            "memory": {
+              "budget_chars": 1600,
+              "raw_chars": 89,
+              "rendered_chars": 89
+            },
+            "prefix": {
+              "budget_chars": 3600,
+              "raw_chars": 5704,
+              "rendered_chars": 3600
+            },
+            "relevant_memory": {
+              "budget_chars": 1200,
+              "raw_chars": 76,
+              "rendered_chars": 76
+            }
+          },
+          "tool_count": 7,
+          "tool_signature": "4426765ffaaf28349778456b4696f3dae2f5ff87eb4b74ad4e8c4e86ee0437fb",
+          "workspace_changed": false,
+          "workspace_chars": 3026,
+          "workspace_docs": 3,
+          "workspace_fingerprint": "6c14c9357678eb6fbf933a1afba53f6ccf46baaa456d1c2996a2c9c8e6d59951"
+        },
+        "redacted_env": {
+          "secret_env_count": 1,
+          "secret_env_names": [
+            "ANTHROPIC_AUTH_TOKEN"
+          ]
+        },
+        "run_id": "run_20260419-131150-3b69ce",
+        "semantic_memory_summary": {
+          "db_path": "E:\\agentcode\\owl\\.tmp\\benchmark-workspaces\\sample_gamma_locked\\bench_repo_patch\\.owl\\memory\\semantic-memory.db",
+          "record_count": 0,
+          "total_record_count": 0
+        },
+        "status": "completed",
+        "stop_reason": "final_answer_returned",
+        "task_id": "task_20260419-131150-1d6f0a",
+        "task_state": {
+          "attempts": 2,
+          "final_answer": "Done.",
+          "last_tool": "patch_file",
+          "run_id": "run_20260419-131150-3b69ce",
+          "status": "completed",
+          "stop_reason": "final_answer_returned",
+          "task_id": "task_20260419-131150-1d6f0a",
+          "tool_steps": 1,
+          "user_request": "In sample.txt, replace gamma with gamma-locked."
+        },
+        "tool_steps": 1,
+        "working_memory": {
+          "active_hypotheses": [],
+          "candidate_targets": [
+            "sample.txt"
+          ],
+          "consecutive_verification_failures": 0,
+          "created_at": "2026-04-19T05:11:50.155699+00:00",
+          "pending_verifications": [],
+          "plan": "",
+          "recent_observations": [],
+          "structured_plan": null,
+          "task_summary": "In sample.txt, replace gamma with gamma-locked.",
+          "verification_history": []
+        }
+      },
+      "report_relpath": "sample_gamma_locked\\bench_repo_patch\\.owl\\runs\\run_20260419-131150-3b69ce\\report.json",
+      "run_dir_relpath": "sample_gamma_locked\\bench_repo_patch\\.owl\\runs\\run_20260419-131150-3b69ce",
+      "run_id": "run_20260419-131150-3b69ce",
+      "status": "pass",
+      "step_budget": 4,
+      "stop_reason": "final_answer_returned",
+      "tags": [],
+      "task_state": {
+        "attempts": 2,
+        "final_answer": "Done.",
+        "last_tool": "patch_file",
+        "run_id": "run_20260419-131150-3b69ce",
+        "status": "completed",
+        "stop_reason": "final_answer_returned",
+        "task_id": "task_20260419-131150-1d6f0a",
+        "tool_steps": 1,
+        "user_request": "In sample.txt, replace gamma with gamma-locked."
+      },
+      "task_state_relpath": "sample_gamma_locked\\bench_repo_patch\\.owl\\runs\\run_20260419-131150-3b69ce\\task_state.json",
+      "tool_steps": 1,
+      "trace_validation": {
+        "completeness": {
+          "complete": true,
+          "event_count": 21,
+          "has_memory_events": true,
+          "has_terminal_event": true,
+          "has_tool_event": true,
+          "missing_events": [],
+          "unique_events": [
+            "compaction_promoted",
+            "context_built",
+            "context_compacted",
+            "context_sources_discovered",
+            "memory_written",
+            "model_parsed",
+            "model_requested",
+            "precompaction_flushed",
+            "prompt_built",
+            "run_finished",
+            "run_started",
+            "state_transition",
+            "tool_executed"
+          ]
+        },
+        "order": {
+          "event_sequence": [
+            "run_started",
+            "state_transition",
+            "state_transition",
+            "context_built",
+            "prompt_built",
+            "model_requested",
+            "model_parsed",
+            "state_transition",
+            "memory_written",
+            "tool_executed",
+            "state_transition",
+            "context_built",
+            "context_sources_discovered",
+            "prompt_built",
+            "model_requested",
+            "model_parsed",
+            "precompaction_flushed",
+            "context_compacted",
+            "compaction_promoted",
+            "memory_written",
+            "run_finished"
+          ],
+          "valid": true,
+          "violations": []
+        }
+      },
+      "verifier": "python -c \"from pathlib import Path; text = Path('sample.txt').read_text(encoding='utf-8'); assert 'gamma-locked' in text\"",
+      "verifier_exit_code": 0,
+      "verifier_passed": true,
+      "verifier_stderr": "",
+      "verifier_stdout": "",
+      "within_budget": true
+    },
+    {
+      "allowed_tools": [
+        "read_file",
+        "patch_file"
+      ],
+      "artifact_digest": "sha256:4a4d77b42f9832779b99bcdda0e85cb68b6b677398897d19d23c665455d8bef8",
+      "artifact_exists": true,
+      "artifact_path": "sample.txt",
+      "attempts": 2,
+      "category": "text-edit",
+      "complexity": {
+        "interaction": "low",
+        "reasoning": "low",
+        "tool": "low"
+      },
+      "evaluations": {
+        "efficiency": {
+          "details": {
+            "avg_tool_ms": 7.0,
+            "context_built_count": 2,
+            "tool_call_count": 1,
+            "total_runtime_ms": 0
+          },
+          "score": 1.0
+        },
+        "outcome": {
+          "details": {
+            "attempts": 2,
+            "status": "completed",
+            "stop_reason": "final_answer_returned",
+            "task_success": true,
+            "tool_steps": 1
+          },
+          "score": 1.0
+        },
+        "process": {
+          "details": {
+            "blocked_tool_call_count": 0,
+            "failed_tool_call_count": 0,
+            "issues": [],
+            "no_progress_loop_count": 0,
+            "premature_done": false,
+            "repeated_identical_call_count": 0
+          },
+          "score": 1.0
+        },
+        "safety": {
+          "details": {
+            "events": [],
+            "path_violation_count": 0,
+            "policy_block_count": 0,
+            "security_event_count": 0
+          },
+          "score": 1.0
+        }
+      },
+      "expected_artifact": "sample.txt ends with delta",
+      "expected_artifact_exists": true,
+      "failure_category": null,
+      "final_answer": "Done.",
+      "fixture_copy_relpath": "sample_placeholder_delta\\bench_repo_patch",
+      "fixture_repo": "tests/fixtures/bench_repo_patch",
+      "id": "sample_placeholder_delta",
+      "initial_episodic_notes_empty": true,
+      "initial_history_empty": true,
+      "initial_memory_empty": true,
+      "initial_task_summary_empty": true,
+      "metrics": {
+        "efficiency": {
+          "avg_tool_ms": 7.0,
+          "context_built_count": 2,
+          "context_items_count": 0,
+          "tool_count_with_duration": 1,
+          "total_runtime_ms": 0
+        },
+        "outcome": {
+          "attempts": 2,
+          "stop_reason": "final_answer_returned",
+          "task_success": true,
+          "tool_steps": 1
+        },
+        "process": {
+          "blocked_tool_call_count": 0,
+          "failed_tool_call_count": 0,
+          "no_progress_loop_count": 0,
+          "repeated_identical_call_count": 0,
+          "tool_call_count": 1,
+          "unique_tool_count": 1
+        },
+        "safety": {
+          "path_violation_count": 0,
+          "policy_block_count": 0,
+          "security_event_count": 0
+        }
+      },
+      "non_failure_stop_reason": true,
+      "overall_score": 0.9999999999999999,
+      "passed": true,
+      "prompt": "In sample.txt, replace placeholder with delta.",
+      "report": {
+        "attempts": 2,
+        "execution_state": {
+          "created_at": "2026-04-19T05:11:51.033882+00:00",
+          "current_phase": "finished",
+          "current_step": 1,
+          "failure_reason": null,
+          "last_observation": "patched sample.txt",
+          "last_tool": "patch_file",
+          "route": null,
+          "run_id": "run_20260419-131151-361b1a",
+          "step_budget": 4,
+          "stop_reason": null,
+          "task_id": "task_20260419-131151-0b378f",
+          "tool_attempts": {
+            "patch_file": 1
+          }
+        },
+        "final_answer": "Done.",
+        "prompt_metadata": {
+          "budget_reductions": [],
+          "current_request": {
+            "raw_chars": 46,
+            "rendered_chars": 46,
+            "section_chars": 68,
+            "text": "In sample.txt, replace placeholder with delta."
+          },
+          "history": {
+            "collapsed_duplicate_reads": 0,
+            "older_entries_count": 0,
+            "raw_chars": 173,
+            "rendered_chars": 173,
+            "rendered_entries": [
+              "[user] In sample.txt, replace placeholder with delta.",
+              "[tool:patch_file] {\"new_text\": \"delta\", \"old_text\": \"placeholder\", \"path\": \"sample.txt\"}",
+              "patched sample.txt"
+            ],
+            "reused_file_summary_count": 0,
+            "summarized_tool_count": 0
+          },
+          "history_chars": 161,
+          "memory_chars": 88,
+          "prefix_changed": false,
+          "prefix_chars": 5709,
+          "prefix_hash": "68df502427b8981cbc9279918443fa687f98cea45fc8ebca48d04baa934cbf4a",
+          "prompt_budget_chars": 12000,
+          "prompt_cache_key": "68df502427b8981cbc9279918443fa687f98cea45fc8ebca48d04baa934cbf4a",
+          "prompt_cache_supported": false,
+          "prompt_chars": 4012,
+          "prompt_over_budget": false,
+          "recent_commits": 5,
+          "reduction_order": [
+            "relevant_memory",
+            "history",
+            "memory",
+            "prefix"
+          ],
+          "relevant_memory": {
+            "items": [
+              {
+                "record_id": "",
+                "repo_path": "",
+                "score": 2.0,
+                "source": "working"
+              }
+            ],
+            "limit": 3,
+            "new_recall_count": 1,
+            "new_recall_sources": [
+              "working"
+            ],
+            "raw_chars": 75,
+            "rendered_chars": 75,
+            "rendered_count": 1,
+            "rendered_notes": [
+              "[working] In sample.txt, replace placeholder with delta."
+            ],
+            "selected_count": 0,
+            "selected_notes": []
+          },
+          "request_chars": 46,
+          "secret_env_count": 1,
+          "secret_env_names": [
+            "ANTHROPIC_AUTH_TOKEN"
+          ],
+          "section_budgets": {
+            "current_request": null,
+            "history": 5200,
+            "memory": 1600,
+            "prefix": 3600,
+            "relevant_memory": 1200
+          },
+          "section_order": [
+            "prefix",
+            "memory",
+            "relevant_memory",
+            "history",
+            "current_request"
+          ],
+          "sections": {
+            "current_request": {
+              "budget_chars": null,
+              "raw_chars": 68,
+              "rendered_chars": 68
+            },
+            "history": {
+              "budget_chars": 5200,
+              "raw_chars": 173,
+              "rendered_chars": 173
+            },
+            "memory": {
+              "budget_chars": 1600,
+              "raw_chars": 88,
+              "rendered_chars": 88
+            },
+            "prefix": {
+              "budget_chars": 3600,
+              "raw_chars": 5709,
+              "rendered_chars": 3600
+            },
+            "relevant_memory": {
+              "budget_chars": 1200,
+              "raw_chars": 75,
+              "rendered_chars": 75
+            }
+          },
+          "tool_count": 7,
+          "tool_signature": "4426765ffaaf28349778456b4696f3dae2f5ff87eb4b74ad4e8c4e86ee0437fb",
+          "workspace_changed": false,
+          "workspace_chars": 3031,
+          "workspace_docs": 3,
+          "workspace_fingerprint": "0655b31cdda0bdca151a251a8a98ca7e152324860bc745dd4de8163da4d7da5b"
+        },
+        "redacted_env": {
+          "secret_env_count": 1,
+          "secret_env_names": [
+            "ANTHROPIC_AUTH_TOKEN"
+          ]
+        },
+        "run_id": "run_20260419-131151-361b1a",
+        "semantic_memory_summary": {
+          "db_path": "E:\\agentcode\\owl\\.tmp\\benchmark-workspaces\\sample_placeholder_delta\\bench_repo_patch\\.owl\\memory\\semantic-memory.db",
+          "record_count": 0,
+          "total_record_count": 0
+        },
+        "status": "completed",
+        "stop_reason": "final_answer_returned",
+        "task_id": "task_20260419-131151-0b378f",
+        "task_state": {
+          "attempts": 2,
+          "final_answer": "Done.",
+          "last_tool": "patch_file",
+          "run_id": "run_20260419-131151-361b1a",
+          "status": "completed",
+          "stop_reason": "final_answer_returned",
+          "task_id": "task_20260419-131151-0b378f",
+          "tool_steps": 1,
+          "user_request": "In sample.txt, replace placeholder with delta."
+        },
+        "tool_steps": 1,
+        "working_memory": {
+          "active_hypotheses": [],
+          "candidate_targets": [
+            "sample.txt"
+          ],
+          "consecutive_verification_failures": 0,
+          "created_at": "2026-04-19T05:11:51.034801+00:00",
+          "pending_verifications": [],
+          "plan": "",
+          "recent_observations": [],
+          "structured_plan": null,
+          "task_summary": "In sample.txt, replace placeholder with delta.",
+          "verification_history": []
+        }
+      },
+      "report_relpath": "sample_placeholder_delta\\bench_repo_patch\\.owl\\runs\\run_20260419-131151-361b1a\\report.json",
+      "run_dir_relpath": "sample_placeholder_delta\\bench_repo_patch\\.owl\\runs\\run_20260419-131151-361b1a",
+      "run_id": "run_20260419-131151-361b1a",
+      "status": "pass",
+      "step_budget": 4,
+      "stop_reason": "final_answer_returned",
+      "tags": [],
+      "task_state": {
+        "attempts": 2,
+        "final_answer": "Done.",
+        "last_tool": "patch_file",
+        "run_id": "run_20260419-131151-361b1a",
+        "status": "completed",
+        "stop_reason": "final_answer_returned",
+        "task_id": "task_20260419-131151-0b378f",
+        "tool_steps": 1,
+        "user_request": "In sample.txt, replace placeholder with delta."
+      },
+      "task_state_relpath": "sample_placeholder_delta\\bench_repo_patch\\.owl\\runs\\run_20260419-131151-361b1a\\task_state.json",
+      "tool_steps": 1,
+      "trace_validation": {
+        "completeness": {
+          "complete": true,
+          "event_count": 21,
+          "has_memory_events": true,
+          "has_terminal_event": true,
+          "has_tool_event": true,
+          "missing_events": [],
+          "unique_events": [
+            "compaction_promoted",
+            "context_built",
+            "context_compacted",
+            "context_sources_discovered",
+            "memory_written",
+            "model_parsed",
+            "model_requested",
+            "precompaction_flushed",
+            "prompt_built",
+            "run_finished",
+            "run_started",
+            "state_transition",
+            "tool_executed"
+          ]
+        },
+        "order": {
+          "event_sequence": [
+            "run_started",
+            "state_transition",
+            "state_transition",
+            "context_built",
+            "prompt_built",
+            "model_requested",
+            "model_parsed",
+            "state_transition",
+            "memory_written",
+            "tool_executed",
+            "state_transition",
+            "context_built",
+            "context_sources_discovered",
+            "prompt_built",
+            "model_requested",
+            "model_parsed",
+            "precompaction_flushed",
+            "context_compacted",
+            "compaction_promoted",
+            "memory_written",
+            "run_finished"
+          ],
+          "valid": true,
+          "violations": []
+        }
+      },
+      "verifier": "python -c \"from pathlib import Path; text = Path('sample.txt').read_text(encoding='utf-8').rstrip('\\n'); assert text.endswith('delta')\"",
+      "verifier_exit_code": 0,
+      "verifier_passed": true,
+      "verifier_stderr": "",
+      "verifier_stdout": "",
+      "within_budget": true
+    }
+  ],
+  "runtime": {
+    "branch": "master",
+    "commit_sha": "09edaf496434c9fd7fa35510c8c9a285401fe505"
+  },
+  "schema_version": 1,
+  "summary": {
+    "failed": 0,
+    "failure_category_counts": {},
+    "pass_rate": 1.0,
+    "passed": 6,
+    "total_tasks": 6,
+    "verifier_passes": 6,
+    "within_budget": 6
+  }
+}
