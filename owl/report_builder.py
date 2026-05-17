@@ -11,9 +11,6 @@ from __future__ import annotations
 from typing import Any
 
 from .trace_schema import (
-    EVENT_RUN_STARTED,
-    EVENT_RUN_COMPLETED,
-    EVENT_RUN_FAILED,
     EVENT_TOOL_EXECUTED,
     EVENT_SECURITY_EVENT,
     EVENT_MODEL_REQUESTED,

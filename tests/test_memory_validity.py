@@ -11,15 +11,13 @@ import shutil
 import tempfile
 from pathlib import Path
 
-import pytest
 
 from owl.memory_validity import (
     FileFingerprintTracker,
     SemanticRecordValidityChecker,
-    ValidityResult,
 )
-from owl.stale_observation_guard import StaleObservationGuard, StaleObservation
-from owl.semantic_memory import SemanticRecord, SemanticMemory
+from owl.stale_observation_guard import StaleObservationGuard
+from owl.semantic_memory import SemanticRecord
 from owl.working_memory import WorkingMemory
 
 

@@ -1,6 +1,5 @@
 """execution_state 模块测试。"""
 
-import pytest
 
 from owl.execution_state import (
     ExecutionState,
@@ -8,7 +7,6 @@ from owl.execution_state import (
     PHASE_PROMPT_BUILDING,
     PHASE_TOOL_EXECUTING,
     PHASE_STOPPED,
-    PHASE_FINISHED,
 )
 
 

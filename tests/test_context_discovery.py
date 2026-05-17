@@ -5,7 +5,6 @@
 
 from __future__ import annotations
 
-import os
 import shutil
 import tempfile
 from pathlib import Path
@@ -15,7 +14,6 @@ import pytest
 from owl.context_sources import ContextSource
 from owl.context_discovery import (
     ContextDiscovery,
-    MAX_ANCESTOR_WALK,
     _classify,
     _extract_header,
     _sha256,

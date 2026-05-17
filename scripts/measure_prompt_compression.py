@@ -8,7 +8,6 @@ from pathlib import Path
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
 from owl.evaluator import run_fixed_benchmark
-from owl.workspace import WorkspaceContext
 
 
 def main():
@@ -32,7 +31,6 @@ def main():
     all_prefix_chars = []
 
     for row in rows:
-        task_id = row.get("id", "?")
         report = row.get("report", {})
         steps = report.get("steps", [])
 
@@ -85,7 +83,7 @@ def main():
                         all_memory_chars.append(pm.get("memory_chars", 0))
                         all_prefix_chars.append(pm.get("prefix_chars", 0))
 
-    print(f"\n=== PROMPT LENGTH DATA ===")
+    print("\n=== PROMPT LENGTH DATA ===")
     print(f"Total prompt_built entries: {len(all_prompt_chars)}")
 
     if all_prompt_chars:

@@ -1,19 +1,11 @@
 """trace_schema 和 trace_logger 测试。"""
 
 import json
-import pytest
-from pathlib import Path
 
 from owl.trace_schema import (
     TraceEvent,
     make_event,
     parse_trace_file,
-    EVENT_RUN_STARTED,
-    EVENT_TOOL_EXECUTED,
-    EVENT_RUN_COMPLETED,
-    EVENT_RUN_FAILED,
-    TOOL_STATUS_OK,
-    TOOL_STATUS_ERROR,
 )
 from owl.trace_logger import TraceLogger
 

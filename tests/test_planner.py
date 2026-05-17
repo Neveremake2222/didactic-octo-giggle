@@ -1,6 +1,6 @@
 """Planner 模块的单元测试。"""
 
-from owl.planner import ExecutionPlan, PlanStep, generate_plan, PLAN_PROMPT_TEMPLATE
+from owl.planner import ExecutionPlan, PlanStep, generate_plan
 
 
 class FakeModelClient:

@@ -1,9 +1,8 @@
 """context_snapshot 模块测试。"""
 
-import pytest
 
 from owl.context_layers import ContextLayer
-from owl.context_snapshot import ContextSnapshot, LayerSummary, _now_iso
+from owl.context_snapshot import ContextSnapshot, LayerSummary
 
 
 class TestLayerSummary:
@@ -100,7 +99,6 @@ class TestContextSnapshot:
         assert compacted.total_raw_chars == 200
 
     def test_total_trimmed(self):
-        from owl.context_layers import ContextItem
         from owl.context_snapshot import ContextSnapshot as CS2
         snapshot = CS2(run_id="run_1", task_id="task_1")
         snapshot.layer_summaries["runtime"] = LayerSummary(

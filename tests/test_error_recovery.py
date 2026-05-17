@@ -1,6 +1,5 @@
 """Error Recovery 模块的单元测试。"""
 
-import pytest
 from owl.error_recovery import (
     RetryOutcome,
     TOOL_ALTERNATIVES,
@@ -9,7 +8,6 @@ from owl.error_recovery import (
     retry_model_call,
     _adapt_args,
 )
-from owl.memory_config import MAX_TOOL_RETRIES, MAX_MODEL_RETRIES
 
 
 # ---------------------------------------------------------------------------

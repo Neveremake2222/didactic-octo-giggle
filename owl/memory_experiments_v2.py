@@ -327,7 +327,6 @@ def _run_cross_session_variant() -> dict[str, Any]:
         if previous_session:
             agent2.session = previous_session
             # Restore memory state from session
-            from . import memory as memorylib
             if "memory" in previous_session:
                 agent2.memory.state = previous_session["memory"]
 

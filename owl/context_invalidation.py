@@ -9,7 +9,6 @@ from __future__ import annotations
 from typing import Any
 
 # 导入统一指纹追踪器，保留 ContextFingerprintIndex 别名以兼容已有导入
-from .memory_validity import FileFingerprintTracker
 
 
 # 为了向后兼容，保留别名

@@ -23,7 +23,6 @@ from typing import Any
 
 from .memory_config import (
     MIN_TOKEN_LEN,
-    SIMILARITY_THRESHOLD,
 )
 
 # 常见编程语言和配置文件后缀（用于路径提取）

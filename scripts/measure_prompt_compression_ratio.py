@@ -139,7 +139,7 @@ def print_report(entries):
     avg_rendered = sum(rendered_totals) / len(rendered_totals)
     avg_prompt = sum(prompt_chars) / len(prompt_chars)
 
-    print(f"\n--- Overall Prompt Assembly ---")
+    print("\n--- Overall Prompt Assembly ---")
     print(f"  Avg raw sum (all sections):     {avg_raw:.0f} chars")
     print(f"  Avg rendered sum (all sections): {avg_rendered:.0f} chars")
     print(f"  Avg final prompt_chars:          {avg_prompt:.0f} chars")
@@ -160,7 +160,7 @@ def print_report(entries):
 
     # Per-section compression
     section_names = ["prefix", "memory", "relevant_memory", "history", "current_request"]
-    print(f"\n--- Per-Section Compression ---")
+    print("\n--- Per-Section Compression ---")
     print(f"  {'Section':<20} {'Avg Raw':>8} {'Avg Rendered':>12} {'Avg Budget':>10} {'Compression':>12}")
     print(f"  {'-' * 20} {'-' * 8} {'-' * 12} {'-' * 10} {'-' * 12}")
 
@@ -183,12 +183,12 @@ def print_report(entries):
     # Budget reductions
     reductions = [r for e in entries for r in e.get("budget_reductions", [])]
     if reductions:
-        print(f"\n--- Budget Reductions Applied ---")
+        print("\n--- Budget Reductions Applied ---")
         print(f"  Total reductions: {len(reductions)}")
         print(f"  Reductions: {reductions[:20]}")
 
     # Distribution of prompt lengths
-    print(f"\n--- Prompt Length Distribution ---")
+    print("\n--- Prompt Length Distribution ---")
     sorted_prompts = sorted(prompt_chars)
     p25 = sorted_prompts[len(sorted_prompts) // 4]
     p50 = sorted_prompts[len(sorted_prompts) // 2]
@@ -215,8 +215,8 @@ def print_report(entries):
     print(f"{'=' * 65}")
     print(f"  Entries analyzed:  {len(entries)}")
     print(f"  Budget cap:        {entries[0]['budget']} chars, over-budget {over_budget}/{len(entries)}")
-    print(f"")
-    print(f"  Per-entry compression (raw -> rendered):")
+    print("")
+    print("  Per-entry compression (raw -> rendered):")
     print(f"    Avg ratio:  {avg_ratio:.1f}%  (avg raw {sum(per_entry_raw)/len(per_entry_raw):.0f} -> avg rendered {sum(per_entry_rendered)/len(per_entry_rendered):.0f})")
     print(f"    Max ratio:  {max_ratio:.1f}%  ({per_entry_raw[idx_max]} -> {per_entry_rendered[idx_max]})")
     print(f"    Min ratio:  {min_ratio:.1f}%  ({per_entry_raw[idx_min]} -> {per_entry_rendered[idx_min]})")

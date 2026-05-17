@@ -1,6 +1,5 @@
 """failure_analyzer 测试。"""
 
-import pytest
 
 from owl.failure_analyzer import (
     classify_failure,
@@ -10,7 +9,6 @@ from owl.failure_analyzer import (
     FAILURE_CATEGORY_CONTEXT_INSUFFICIENT,
     FAILURE_CATEGORY_VERIFICATION_FAILED,
     FAILURE_CATEGORY_UNKNOWN,
-    ALL_FAILURE_CATEGORIES,
 )
 
 

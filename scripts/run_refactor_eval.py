@@ -34,9 +34,9 @@ ROOT = Path(__file__).resolve().parent.parent
 if str(ROOT) not in sys.path:
     sys.path.insert(0, str(ROOT))
 
-from owl.evaluator import run_fixed_benchmark, summarize_rows, BenchmarkEvaluator
-from owl.trace_validator import compute_trace_metrics
-from owl.memory_experiments_v2 import run_memory_experiments_v2
+from owl.evaluator import run_fixed_benchmark  # noqa: E402
+from owl.trace_validator import compute_trace_metrics  # noqa: E402
+from owl.memory_experiments_v2 import run_memory_experiments_v2  # noqa: E402
 
 DEFAULT_OUTPUT_ROOT = Path("artifacts") / "eval"
 DEFAULT_TIMEZONE = "Asia/Shanghai"
@@ -174,8 +174,6 @@ def build_failure_summary(artifact: dict[str, Any]) -> dict[str, Any]:
     # Check stop reason hit rate
     stop_reason_hits = []
     for row in rows:
-        task_config = {}
-        expected_sr = row.get("stop_reason")  # Not directly available; check from task
         # For failure tasks, pass means stop_reason matched expected
         stop_reason_hits.append({
             "task_id": row["id"],
@@ -269,8 +267,6 @@ def build_acceptance_table(
     trace_report: dict[str, Any],
 ) -> list[dict[str, Any]]:
     """Build acceptance criteria table from collected results."""
-    noise_correct = memory_report.get("noise_recall", {}).get("noisy_correct_rate", 0.0)
-    irrelevant_rate = 1.0 - noise_correct  # approx
     stale_rate = memory_report.get("conflict_resolution", {}).get("stale_recall_rate", 0.0)
     trace_complete = trace_report.get("summary", {}).get("overall_trace_completeness_rate", 0.0)
     stop_hit = failure_summary.get("stop_reason_hit_rate", 0.0)
@@ -466,7 +462,6 @@ def run_refactor_evaluation(
     failure_artifact: dict[str, Any] = {}
     failure_summary: dict[str, Any] = {}
     failure_trace_metrics: dict[str, Any] = {}
-    all_failure_workspaces: list[Path] = []
     if failure_path:
         failure_artifact = summarize_refactor_benchmark(
             failure_path, output_dir / "benchmarks", "failure"

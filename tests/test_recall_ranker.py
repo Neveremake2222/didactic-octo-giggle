@@ -4,9 +4,8 @@ from __future__ import annotations
 
 from datetime import datetime, timedelta, timezone
 
-import pytest
 
-from owl.recall_ranker import RecallRanker, RecallRankingResult, RecallReport
+from owl.recall_ranker import RecallRanker
 from owl.semantic_memory import SemanticRecord, SemanticMemory
 from owl.memory_retriever import MemoryRetriever
 

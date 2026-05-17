@@ -1,13 +1,11 @@
 """context_layers 模块测试。"""
 
-import pytest
 
 from owl.context_layers import (
     ContextBundle,
     ContextItem,
     ContextLayer,
     DEFAULT_LAYER_PRIORITY,
-    TRIMMABLE_LAYERS,
     classify_existing_section,
 )
 

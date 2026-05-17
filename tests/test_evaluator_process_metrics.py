@@ -1,6 +1,5 @@
 """compute_metrics 和四层 evaluator 测试。"""
 
-import pytest
 
 from owl.trace_schema import TraceEvent
 from owl.metrics import compute_metrics

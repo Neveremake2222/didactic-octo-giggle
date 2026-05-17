@@ -2,10 +2,7 @@
 
 from __future__ import annotations
 
-import json
-from pathlib import Path
 
-import pytest
 
 from owl.procedure_candidate_detector import (
     ProcedureCandidate,
@@ -15,7 +12,6 @@ from owl.procedure_candidate_detector import (
 from owl.skill_candidate_registry import (
     SkillCandidate,
     SkillCandidateRegistry,
-    STAGES,
 )
 from owl.working_memory import WorkingMemory
 from owl.memory_compactor import MemoryCompactor

@@ -13,9 +13,9 @@ from __future__ import annotations
 from dataclasses import dataclass, field
 from typing import Any
 
-from .semantic_memory import SemanticMemory, SemanticRecord
+from .semantic_memory import SemanticMemory
 from .working_memory import WorkingMemory
-from .recall_ranker import RecallRanker, RecallReport
+from .recall_ranker import RecallRanker
 from .memory_utils import compute_relevance
 from .memory_validity import FileFingerprintTracker, SemanticRecordValidityChecker
 

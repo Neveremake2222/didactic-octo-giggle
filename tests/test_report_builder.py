@@ -1,6 +1,5 @@
 """report_builder 测试。"""
 
-import pytest
 
 from owl.report_builder import build_report
 

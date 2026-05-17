@@ -12,9 +12,7 @@ trace_logger 的职责是"只记录"，不做任何业务判断。
 
 from __future__ import annotations
 
-import json as _json
 from datetime import datetime, timezone
-from pathlib import Path
 from typing import Any
 
 from .trace_schema import TraceEvent

@@ -17,7 +17,6 @@ from __future__ import annotations
 import hashlib
 import json
 import logging
-import os
 import sqlite3
 import threading
 from dataclasses import dataclass, field
@@ -349,7 +348,7 @@ class _SQLiteBackend:
 
             try:
                 # 批量 upsert
-                conn.execute(f"PRAGMA synchronous=OFF")
+                conn.execute("PRAGMA synchronous=OFF")
                 for row in rows:
                     try:
                         existing = conn.execute(
@@ -372,7 +371,7 @@ class _SQLiteBackend:
                     except sqlite3.Error:
                         pass
                 conn.commit()
-                conn.execute(f"PRAGMA synchronous=NORMAL")
+                conn.execute("PRAGMA synchronous=NORMAL")
             except sqlite3.Error as exc:
                 logger.warning("Failed to batch upsert %d records: %s", len(records), exc)
 

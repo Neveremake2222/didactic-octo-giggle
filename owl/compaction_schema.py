@@ -12,7 +12,6 @@ compaction_schema 定义了 working memory → semantic memory 沉淀时必须�
 
 from __future__ import annotations
 
-import hashlib
 from dataclasses import dataclass, field
 from datetime import datetime, timezone
 from typing import Any
@@ -150,7 +149,6 @@ def build_schema_from_working_memory(
 
     for obs in wm.recent_observations:
         summary = getattr(obs, "summary", str(obs)) if hasattr(obs, "summary") else str(obs)
-        tool = getattr(obs, "tool_name", "")
         # 文件路径提取（复用 memory_compactor 的逻辑）
         path = _extract_path_from_summary(summary)
         if path:

@@ -10,10 +10,7 @@ CONTRIBUTING.md / 规则文件，并将结果注入 prompt。
 from __future__ import annotations
 
 import hashlib
-import os
-import re
 from pathlib import Path
-from typing import Any
 
 from .context_sources import (
     CANONICAL_DOC_FILES,

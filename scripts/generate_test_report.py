@@ -5,7 +5,6 @@
 """
 import datetime
 import json
-import os
 import subprocess
 import sys
 from pathlib import Path
@@ -127,13 +126,17 @@ def collect_pytest_summary():
     duration = 0.0
     import re
     m = re.search(r"(\d+) passed", summary_line)
-    if m: passed = int(m.group(1))
+    if m:
+        passed = int(m.group(1))
     m = re.search(r"(\d+) failed", summary_line)
-    if m: failed = int(m.group(1))
+    if m:
+        failed = int(m.group(1))
     m = re.search(r"(\d+) error", summary_line)
-    if m: errors = int(m.group(1))
+    if m:
+        errors = int(m.group(1))
     m = re.search(r"in ([\d.]+)s", summary_line)
-    if m: duration = float(m.group(1))
+    if m:
+        duration = float(m.group(1))
     total = passed + failed + errors
 
     return {
@@ -161,8 +164,8 @@ def section_unit_tests():
     pass_rate = r["passed"] / r["total"] if r["total"] else 0
     bar = score_bar(pass_rate)
 
-    lines.append(f"| 指标 | 数值 |")
-    lines.append(f"|------|------|")
+    lines.append("| 指标 | 数值 |")
+    lines.append("|------|------|")
     lines.append(f"| 测试总数 | {r['total']} |")
     lines.append(f"| 通过 | {r['passed']} |")
     lines.append(f"| 失败 | {r['failed']} |")
@@ -290,10 +293,14 @@ def section_run_metrics():
     for run_dir in run_dirs:
         m = read_json(run_dir / "metrics.json")
         if m:
-            if m.get("outcome"): all_outcome.append(m["outcome"])
-            if m.get("process"): all_process.append(m["process"])
-            if m.get("efficiency"): all_efficiency.append(m["efficiency"])
-            if m.get("safety"): all_safety.append(m["safety"])
+            if m.get("outcome"):
+                all_outcome.append(m["outcome"])
+            if m.get("process"):
+                all_process.append(m["process"])
+            if m.get("efficiency"):
+                all_efficiency.append(m["efficiency"])
+            if m.get("safety"):
+                all_safety.append(m["safety"])
 
     def avg(lst, key):
         vals = [x[key] for x in lst if key in x and x[key] is not None]
@@ -309,8 +316,8 @@ def section_run_metrics():
     lines.append("### 工具使用统计")
     lines.append("")
     if all_process:
-        lines.append(f"| 指标 | 数值 |")
-        lines.append(f"|------|------|")
+        lines.append("| 指标 | 数值 |")
+        lines.append("|------|------|")
         lines.append(f"| 平均工具调用次数 | {avg(all_process, 'tool_call_count'):.2f} |")
         lines.append(f"| 平均不同工具数 | {avg(all_process, 'unique_tool_count'):.2f} |")
         lines.append(f"| 平均重复调用次数 | {avg(all_process, 'repeated_identical_call_count'):.2f} |")
@@ -324,8 +331,8 @@ def section_run_metrics():
     lines.append("### 效率指标")
     lines.append("")
     if all_efficiency:
-        lines.append(f"| 指标 | 数值 |")
-        lines.append(f"|------|------|")
+        lines.append("| 指标 | 数值 |")
+        lines.append("|------|------|")
         lines.append(f"| 平均总运行时间 | {avg(all_efficiency, 'total_runtime_ms'):.0f} ms |")
         lines.append(f"| 平均工具耗时 | {avg(all_efficiency, 'avg_tool_ms'):.1f} ms |")
         lines.append(f"| 平均上下文构建次数 | {avg(all_efficiency, 'context_built_count'):.2f} |")
@@ -337,8 +344,8 @@ def section_run_metrics():
     lines.append("### 安全指标")
     lines.append("")
     if all_safety:
-        lines.append(f"| 指标 | 数值 |")
-        lines.append(f"|------|------|")
+        lines.append("| 指标 | 数值 |")
+        lines.append("|------|------|")
         lines.append(f"| 策略拦截次数 | {sum_key(all_safety, 'policy_block_count')} |")
         lines.append(f"| 审批拒绝次数 | {sum_key(all_safety, 'approval_denied_count')} |")
         lines.append(f"| 路径违规次数 | {sum_key(all_safety, 'path_violation_count')} |")
@@ -369,8 +376,8 @@ def section_core_metrics():
     runs = data.get("runs", {})
     mode = data.get("experiment_mode", "synthetic")
 
-    lines.append(f"| 指标 | 数值 |")
-    lines.append(f"|------|------|")
+    lines.append("| 指标 | 数值 |")
+    lines.append("|------|------|")
     lines.append(f"| 实验模式 | {mode} |")
     lines.append(f"| 模型后端数 | {facts.get('model_backend_count', '?')} |")
     lines.append(f"| 工具类型数 | {facts.get('tool_count', '?')} |")
