@@ -11,12 +11,10 @@ Builder 接收 agent 的各来源数据（prefix、memory、history、relevant n
 from __future__ import annotations
 
 import json
-from dataclasses import dataclass, field
+from dataclasses import dataclass
 from typing import TYPE_CHECKING, Any
 
 from .context_layers import (
-    ContextBundle,
-    ContextItem,
     ContextLayer,
     classify_existing_section,
 )
@@ -178,7 +176,8 @@ class ContextBuilder:
             prefix = f"[tool:{name}] {args_str}"
             content = _tail_clip(str(item.get("content", "")), max(20, line_limit))
             return [prefix, content]
-        return [f"[{role}] {_tail_clip(str(item.get("content", "")), line_limit)}"]
+        content = item.get("content", "")
+        return [f"[{role}] {_tail_clip(str(content), line_limit)}"]
 
     def _render_relevant_memory(self, selected_notes: list[dict[str, Any]]) -> str:
         """把相关笔记渲染成一段文本。"""

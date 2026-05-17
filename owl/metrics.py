@@ -1,7 +1,6 @@
 import json
 import os
 import shutil
-import tempfile
 from contextlib import contextmanager
 from datetime import datetime
 from pathlib import Path
@@ -11,7 +10,7 @@ from uuid import uuid4
 from .evaluator import run_fixed_benchmark
 from .models import AnthropicCompatibleModelClient, FakeModelClient, OpenAICompatibleModelClient
 from .runtime import Owl, SessionStore
-from .trace_schema import TraceEvent, TOOL_STATUS_OK, TOOL_STATUS_ERROR, TOOL_STATUS_REJECTED, TOOL_STATUS_BLOCKED
+from .trace_schema import TraceEvent, TOOL_STATUS_ERROR, TOOL_STATUS_REJECTED, TOOL_STATUS_BLOCKED
 from .workspace import WorkspaceContext
 
 
@@ -1214,7 +1213,7 @@ def collect_resume_metrics(
     provider_payload = {"providers": []}
     if provider_experiments:
         provider_payload = json.loads(Path(provider_experiments).read_text(encoding="utf-8"))
-    return {
+    result = {
         "experiment_mode": experiment_mode,
         "real_provider": real_provider if experiment_mode == "real" else "",
         "facts": {

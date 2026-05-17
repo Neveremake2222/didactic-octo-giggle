@@ -1,17 +1,13 @@
 """context_budget 和 context_builder 模块测试。"""
 
-import pytest
-
 from owl.context_budget import (
     BudgetConfig,
     ContextBudget,
     DEFAULT_TOTAL_BUDGET,
     DEFAULT_SECTION_BUDGETS,
-    DEFAULT_SECTION_FLOORS,
-    DEFAULT_REDUCTION_ORDER,
     _tail_clip,
 )
-from owl.context_builder import ContextBuilder, BuiltContext, SECTION_ORDER
+from owl.context_builder import ContextBuilder
 
 
 class TestTailClip:
@@ -112,6 +108,13 @@ class TestContextBuilder:
         )
         assert "README.md" in prompt
         assert metadata["history_entries"] == 2
+
+    def test_render_history_item_accepts_string_content_on_python_310(self):
+        builder = ContextBuilder(agent=None)
+
+        result = builder._render_history_item({"role": "assistant", "content": "done"}, 20)
+
+        assert result == ["[assistant] done"]
 
     def test_build_with_selected_notes(self):
         builder = ContextBuilder(agent=None, budget=ContextBudget(total=50000))

@@ -9,6 +9,6 @@
 
 ## Architecture Notes
 
-- Memory system: WorkingMemory (per-run) → MemoryCompactor → SemanticMemory (cross-run)
-- Context: assembled by ContextBuilder from WorkingMemory + SemanticMemory + ContextDiscovery
+- Memory system: WorkingMemory (per-run) -> MemoryCompactor -> SemanticMemory (cross-run)
+- Context: ContextManager owns prompt assembly; ContextBuilder remains the lower-level renderer used by ContextManager.
 - All memory writes must go through MemoryWriter; all recalls must go through MemoryRetriever
